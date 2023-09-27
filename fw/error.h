@@ -1,4 +1,4 @@
-// Copyright 2018-2023 Josh Pieper, jjp@pobox.com.
+// Copyright 2023 mjbots Robotic Systems, LLC.  info@mjbots.com
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -46,6 +46,7 @@ enum class errc {
   kThetaInvalid = 42,
   kPositionInvalid = 43,
   kDriverEnableFault = 44,
+  kStopPositionDeprecated = 45,
 };
 
 mjlib::micro::error_code make_error_code(errc);

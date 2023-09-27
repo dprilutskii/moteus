@@ -240,8 +240,13 @@ register protocol.
 
 Pins: select
 
-Currently supported are the RLS AksIM-2 encoder, and a transparent
-UART tunnel.
+A variety of asynchronous serial encoders and debugging facilities are
+supported.
+
+The moteus-n1 additionally has a hardware RS422 transceiver connected
+to aux1's pins D and E which can be enabled through configuration.
+RS485 devices like the CUI AMT21x can be used if the RS422 pin Y is
+connected to A and RS422 pin Z is connected to B.
 
 ### Pin Options ###
 
@@ -358,7 +363,9 @@ that feature.
 
 `motor_position.commutation_source` selects which source is used to
 provide rotor position for commutation purposes.  It is typically left
-at source 0 and is required.
+at source 0 and is required.  Note, quadrature sources are not
+recommended for commutation as they can lose counts and require
+additional application level homing support on each power-on.
 
 `motor_position.output.source` selects which source is used to provide
 output position and velocity and is required.
@@ -620,9 +627,12 @@ complete, and the controller is following the final velocity.
 
 Mode: Read only
 
-Non-zero if the controller has had its output position set since power
-on.  This could have been from a source configured for multi-turn, as
-an index, or the "set output nearest" or "set output exact" commands.
+* 0 - *relative only* - the position is not referenced to anything
+* 1 - *rotor* - the position is referenced to the rotor
+* 2 - *output* - the position has been referenced to the output,
+  either with an output referenced encoder, or with a "set output
+  nearest" or "set output exact" command
+
 
 #### 0x00d - Voltage ####
 
@@ -667,6 +677,11 @@ A fault code which will be set if the primary mode is 1 (Fault).
   operation that requires a stop
 * 42 - *theta invalid* - no valid commutation encoder is available
 * 43 - *position invalid* - no valid output encoder is available
+* 44 - *stop position deprecated* - an attempt was made to use the
+  deprecated "stop position" feature along with velocity or
+  acceleration limits.  Prefer to instead command the desired position
+  directly with a target velocity of 0.0, or secondarily, disable
+  acceleration and velocity limits.
 
 The full list can be found at: [fw/error.h](../fw/error.h#L25)
 
@@ -741,11 +756,16 @@ electrical phase.  Integral types use the velocity mapping.
 
 Mode: Read/write
 
-When in Position mode, this controls the desired position.  The
-maximally negative integer, or NaN for float represents, "use the
-current position value".  If unspecified, 0.0 is used.  Note, the
-controller will attempt to achieve this position *right now* subject
-to the kp and kd constants.
+When in Position mode, this controls the desired position.
+
+The maximally negative integer, or NaN for float represents, "use the
+current position value".
+
+If unspecified, 0.0 is used.
+
+Note, in the absence of any configured or commanded velocity or
+acceleration limits, the controller will attempt to achieve this
+position *right now* subject to the kp and kd constants.
 
 #### 0x021 - Velocity command ####
 
@@ -756,8 +776,12 @@ velocity in Hz.
 
 As a special case, if the 0x020 position is unset, and 0x026 stop
 position is set, the sign of this is ignored, and is instead selected
-so that the motor will move towards the stop position.  If
-unspecified, 0.0 is used.
+so that the motor will move towards the stop position.
+
+The maximally negative integer, or NaN for float, is treated the same
+as 0.0.
+
+If unspecified, 0.0 is used.
 
 #### 0x022 - Feedforward torque ####
 
@@ -1892,11 +1916,13 @@ less than 5.
 
 The type of SPI device.
 
-* 0 - The onboard AS5047P.  Only valid for aux1.  If selected, the
-  CLK, MOSI, and MISO lines must be either NC or selected as SPI.
+* 0 - The onboard AS5047P (CPR == 16384). Only valid for aux1.  If
+  selected, the CLK, MOSI, and MISO lines must be either NC or
+  selected as SPI.
 * 1 - Disabled.
-* 2 - AS5047P
+* 2 - AS5047P (CPR == 16384)
 * 3 - iC-PZ
+* 4 - MA732 (CPR == 65536)
 
 NOTE: iC-PZ devices require significant configuration and calibration
 before use.  Diagnostic mode commands are provided for low level
@@ -1904,9 +1930,7 @@ access.
 
 ## `aux[12].spi.rate_hz` ##
 
-The frequency to operate the SPI bus at.  The default is 12000000,
-which is required for AS5047P devices.  Other devices may support
-lower rates.
+The frequency to operate the SPI bus at.  The default is 12000000.
 
 ## `aux[12].uart.mode` ##
 
@@ -1916,6 +1940,7 @@ The type of UART device.
 * 1 - RLS AksIM-2
 * 2 - Tunnel
 * 3 - Per-control cycle debug information (undocumented)
+* 4 - CUI AMT21x series RS422
 
 When the tunnel mode is selected, data may be sent or received using
 the CAN diagnostic protocol.  For aux1, use diagnostic channel 2.  For
@@ -1929,6 +1954,18 @@ The baud rate to use for the UART.
 
 For encoder modes, the interval at which to poll the encoder for new
 position information.
+
+## `aux[12].uart.rs422` ##
+
+Enable the RS422 transceiver.  This is only valid for 'aux1', and
+requires that pin D and E (`aux1.pins.3` and `aux1.pins.4`) be
+used for UART.
+
+## `aux[12].uart.cui_amt21_address` ##
+
+Select the CUI AMT21 address to communicate with.  The default is 0x54
+(84 decimal), which is the default address CUI AMT21 encoders are
+configured with.
 
 ## `aux[12].quadrature.enabled` ##
 
@@ -2029,6 +2066,10 @@ do not natively measure velocity will produce no velocity readings
 A 0-based index into the source list that selects the source to use
 for commutation.  This means it should have an accurate measure of the
 relationship between the rotor and stator.
+
+It is not recommended to use quadrature sources for commutation as
+they can lose counts and require additional application level homing
+support at each power-on.
 
 ## `motor_position.output.source` ##
 
@@ -2463,3 +2504,17 @@ The following design considerations can be used to minimize the risk of damage t
 - *Lower the over-voltage fault*: The configuration parameter `servo.max_voltage` can be lowered for all devices on the bus.  If set above the highest expected transient, this can reduce the likelihood of severe transients causing damage.
 
 - *Use a supply which can sink as well as source*: Powering from an inexpensive lab supply is the most dangerous, as they typically have no ability to sink current, only source it.  A "two quadrant" supply is the necessary device.
+
+## PID Tuning ##
+
+There are two configurable PI(D) controllers on moteus.  The "current loop" gains are set in `servo.pid_dq`, and are set during calibration based on the desired torque bandwidth.  They are not normally changed by the user.
+
+The position control PID loop parameters are set in `servo.pid_position` and are selected by the user to achieve a desired control response.
+
+Rough tuning rules are as follows:
+
+1. Set kp to be small and kd, ki, and ilimit to be 0.  The kp at this stage should be low enough that any restorative torque is very gradual.
+2. Increase kp by 50% at a time until the desired stiffness is reached.  A command like `d pos nan 0 nan` can be used to "hold position", then manual external disturbances can be used to judge the response.  If the control becomes unstable or vibrates, back off by 50%.
+3. Set kd initially to 1/100th of the kp value.  Increase it by roughly 50% at a time until the desired damping is reached.  If instability or vibration results, back off by 50%.
+4. If zero steady state error is required, then an integrative term is required.  If not, leave `ilimit` at 0 and you are done.
+5. If configuring an integrative term, set `ilimit` to be 20% higher than the maximum expected steady state torque.  Then increase ki until the desired response is achieved.  `ki` will likely need to be numerically much larger than kp, on the order of 10-1000x larger.  A more representative control profile than just a "hold position" may be needed to determine if the selected integrative constants are sufficient.

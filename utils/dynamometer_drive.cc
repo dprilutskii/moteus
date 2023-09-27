@@ -1,4 +1,4 @@
-// Copyright 2020-2023 Josh Pieper, jjp@pobox.com.
+// Copyright 2023 mjbots Robotic Systems, LLC.  info@mjbots.com
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -2002,8 +2002,8 @@ class Application {
       double power_W;
       double expected_speed_Hz;
     } tests[] = {
-      { 100.0, 4.04 },
-      { 20.0, 3.12 },
+      { 100.0, 3.80 },
+      { 20.0, 3.00 },
       { 10.0, 1.90 },
       { 5.0, 1.30 },
     };

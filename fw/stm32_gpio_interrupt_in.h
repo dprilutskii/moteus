@@ -1,4 +1,4 @@
-// Copyright 2022 Josh Pieper, jjp@pobox.com.
+// Copyright 2023 mjbots Robotic Systems, LLC.  info@mjbots.com
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -150,7 +150,7 @@ class Stm32GpioInterruptIn {
 
     const auto pin_index = STM_PIN(pin_);
 
-    EXTI->IMR1 &= (1 << pin_index);
+    EXTI->IMR1 &= ~(1 << pin_index);
 
     const auto irq_index = FindIrqIndex(pin_);
 
@@ -222,7 +222,7 @@ class Stm32GpioInterruptIn {
     }
   }
 
-  static constexpr int kMaxCallbacks = 2;
+  static constexpr int kMaxCallbacks = 3;
 
   static Callback entries_[kMaxCallbacks];
 

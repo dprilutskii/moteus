@@ -1,4 +1,4 @@
-// Copyright 2018-2022 Josh Pieper, jjp@pobox.com.
+// Copyright 2023 mjbots Robotic Systems, LLC.  info@mjbots.com
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -425,6 +425,17 @@ class BldcServo::Impl {
     }
 
     telemetry_data_ = *next;
+
+    if (!!next->stop_position_relative_raw &&
+        (std::isfinite(next->accel_limit) ||
+         std::isfinite(next->velocity_limit))) {
+      // There is no valid use case for using a stop position along
+      // with an acceleration or velocity limit.
+      volatile auto* mode_volatile = &status_.mode;
+      volatile auto* fault_volatile = &status_.fault;
+      *fault_volatile = errc::kStopPositionDeprecated;
+      *mode_volatile = kFault;
+    }
 
     std::swap(current_data_, next_data_);
   }
@@ -2078,6 +2089,9 @@ class BldcServo::Impl {
         MotorPosition::FloatToInt(*target_position) -
         absolute_relative_delta;
     data->velocity = 0.0;
+    status_.control_position_raw = data->position_relative_raw;
+    status_.control_position = *target_position;
+    status_.control_velocity = 0.0f;
 
     ISR_DoPositionCommon(
         sin_cos, data, apply_options,

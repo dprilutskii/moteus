@@ -1,4 +1,4 @@
-// Copyright 2022 Josh Pieper, jjp@pobox.com.
+// Copyright 2023 mjbots Robotic Systems, LLC.  info@mjbots.com
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -32,8 +32,10 @@
 #include "fw/aux_common.h"
 #include "fw/aux_mbed.h"
 #include "fw/ccm.h"
+#include "fw/cui_amt21.h"
 #include "fw/ic_pz.h"
 #include "fw/math.h"
+#include "fw/ma732.h"
 #include "fw/millisecond_timer.h"
 #include "fw/moteus_hw.h"
 #include "fw/stm32_i2c.h"
@@ -115,6 +117,9 @@ class AuxPort {
     if (as5047_) {
       as5047_->StartSample();
     }
+    if (ma732_) {
+      ma732_->StartSample();
+    }
     if (ic_pz_) {
       ic_pz_->ISR_StartSample();
     }
@@ -126,6 +131,12 @@ class AuxPort {
     if (as5047_) {
       status_.spi.active = true;
       status_.spi.value = as5047_->FinishSample();
+      status_.spi.nonce += 1;
+    }
+
+    if (ma732_) {
+      status_.spi.active = true;
+      status_.spi.value = ma732_->FinishSample();
       status_.spi.nonce += 1;
     }
 
@@ -194,6 +205,10 @@ class AuxPort {
     if (aksim2_) {
       aksim2_->ISR_Update(&status_.uart);
     }
+
+    if (cui_amt21_) {
+      cui_amt21_->ISR_Update(&status_.uart);
+    }
   }
 
   // Call this after AuxADC::ISR_EndSample() has completed.
@@ -256,6 +271,23 @@ class AuxPort {
         // results.  So we do one here to ensure that all those that
         // our ISR performs are good.
         as5047_->Sample();
+
+        __enable_irq();
+      }
+    }
+
+    if (!ma732_ && ma732_options_) {
+      // The worst case startup time for the MA732 is 260ms, however
+      // we can't current measure that long from startup.  So we'll
+      // just check for 10ms like the AS5047 and let the application
+      // deal with it if it has configured a longer filter period.
+      if (timer_->read_ms() > 10) {
+        __disable_irq();
+        status_.error = aux::AuxError::kNone;
+        ma732_.emplace(timer_, *ma732_options_);
+
+        // Ensure we have at least one sample under our belt.
+        ma732_->Sample();
 
         __enable_irq();
       }
@@ -644,6 +676,8 @@ class AuxPort {
     }
     as5047_.reset();
     as5047_options_.reset();
+    ma732_.reset();
+    ma732_options_.reset();
     onboard_cs_.reset();
 
     bool updated_any_isr = false;
@@ -671,6 +705,7 @@ class AuxPort {
     if (rs422_de_) { rs422_de_->write(0); }
     if (rs422_re_) { rs422_re_->write(1); }
     aksim2_.reset();
+    cui_amt21_.reset();
 
     for (auto& cfg : adc_info_.config) {
       cfg.adc_num = -1;
@@ -812,6 +847,13 @@ class AuxPort {
           ic_pz_.emplace(options, timer_);
           break;
         }
+        case aux::Spi::Config::kMa732: {
+          MA732::Options options = spi_options;
+          options.filter_us = config_.spi.filter_us;
+          options.bct = config_.spi.bct;
+          ma732_options_ = options;
+          break;
+        }
         case aux::Spi::Config::kDisabled:
         case aux::Spi::Config::kNumModes: {
           MJ_ASSERT(false);
@@ -944,6 +986,10 @@ class AuxPort {
           // Nothing special to do here.
           break;
         }
+        case C::kCuiAmt21: {
+          cui_amt21_.emplace(config_.uart, &*uart_, timer_);
+          break;
+        }
         default: {
           status_.error = aux::AuxError::kUartPinError;
           return;
@@ -1046,6 +1092,10 @@ class AuxPort {
 
   std::optional<AS5047> as5047_;
   std::optional<AS5047::Options> as5047_options_;
+
+  std::optional<MA732> ma732_;
+  std::optional<MA732::Options> ma732_options_;
+
   std::optional<IcPz> ic_pz_;
   std::optional<DigitalOut> onboard_cs_;
 
@@ -1062,6 +1112,7 @@ class AuxPort {
   std::optional<aux::Stm32Index> index_;
   std::optional<Stm32G4DmaUart> uart_;
   std::optional<Aksim2> aksim2_;
+  std::optional<CuiAmt21> cui_amt21_;
   std::optional<DigitalOut> rs422_re_;
   std::optional<DigitalOut> rs422_de_;
 

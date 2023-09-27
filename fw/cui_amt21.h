@@ -14,64 +14,64 @@
 
 #pragma once
 
-#include "fw/aux_common.h"
-#include "fw/millisecond_timer.h"
-#include "fw/stm32g4_dma_uart.h"
-
 namespace moteus {
 
-class Aksim2 {
+class CuiAmt21 {
  public:
-  Aksim2(const aux::UartEncoder::Config& config,
-         Stm32G4DmaUart* uart,
-         MillisecondTimer* timer)
+  CuiAmt21(const aux::UartEncoder::Config& config,
+           Stm32G4DmaUart* uart,
+           MillisecondTimer* timer)
       : config_(config),
         uart_(uart),
         timer_(timer) {}
 
+
   void ISR_Update(aux::UartEncoder::Status* status) MOTEUS_CCM_ATTRIBUTE {
-    // Now check to see if we can issue a new one.
     const uint32_t now_us = timer_->read_us();
     const uint32_t delta_us = (now_us - last_query_start_us_);
 
-    // Do we have an outstanding query?
     if (query_outstanding_) {
       if (delta_us > static_cast<uint32_t>(2 * config_.poll_rate_us)) {
         // We timed out.
         uart_->finish_dma_read();
         query_outstanding_ = false;
       } else {
-        // See if we can finish it.
+        // Check for a response.
         ProcessQuery(status);
       }
     }
 
-    // We did not complete the query, so just return.
+    // We didn't manage to finish.  Try again next time.
     if (query_outstanding_) { return; }
 
     if (delta_us < static_cast<uint32_t>(config_.poll_rate_us)) {
-      // Nope, we're not ready to issue another.
+      // We are not ready to issue another request yet.
       return;
     }
 
     last_query_start_us_ = now_us;
     query_outstanding_ = true;
-    uart_->write_char('d');
+    uart_->write_char(config_.cui_amt21_address);
     StartRead();
   }
 
+ private:
   void ProcessQuery(aux::UartEncoder::Status* status) MOTEUS_CCM_ATTRIBUTE {
     if (uart_->read_bytes_remaining() > kResyncBytes) { return; }
 
     if (uart_->read_bytes_remaining() == 0) {
-      // We used up our resync bytes without success.  Just try again.
+      // We consumed our resync bytes without finding a header.  Just
+      // try again.
       uart_->finish_dma_read();
       query_outstanding_ = false;
       return;
     }
 
-    if (buffer_[0] != 'd') {
-      // Not what we are expecting.  Just fill up our buffer until
+    // Our RS422 lines have to be tied together, which means we should
+    // receive our read command echoed back as the first byte.
+
+    if (buffer_[0] != config_.cui_amt21_address) {
+      // Not what we were expecting.  Just fill up our buffer until
       // the timeout.
       return;
     }
@@ -79,21 +79,41 @@ class Aksim2 {
     uart_->finish_dma_read();
     query_outstanding_ = false;
 
-    status->value =
-        ((buffer_[1] << 16) |
-         (buffer_[2] << 8) |
-         (buffer_[3] << 0)) >> 2;
-    status->aksim2_err = buffer_[3] & 0x01;
-    status->aksim2_warn = buffer_[3] & 0x02;
-    status->aksim2_status =
-        (buffer_[4] << 8) |
-        (buffer_[5] << 0);
+    // Check the parity bits.
+    const uint16_t value = buffer_[1] | (buffer_[2] << 8);
 
+    const auto even_parity = [](uint16_t value) -> bool {
+      return (1 ^
+              (value & 0x01) ^
+              ((value >> 2) & 0x01) ^
+              ((value >> 4) & 0x01) ^
+              ((value >> 6) & 0x01) ^
+              ((value >> 8) & 0x01) ^
+              ((value >> 10) & 0x01) ^
+              ((value >> 12) & 0x01)) ? true : false;
+    };
+
+    const auto odd_parity = [&](uint16_t value) -> bool {
+      return even_parity(value >> 1);
+    };
+
+    const bool measured_even_parity = even_parity(value);
+    const bool measured_odd_parity = odd_parity(value);
+
+    const bool received_odd_parity = !!(value & 0x8000);
+    const bool received_even_parity = !!(value & 0x4000);
+
+    if (received_odd_parity != measured_odd_parity ||
+        received_even_parity != measured_even_parity) {
+      status->checksum_errors++;
+      return;
+    }
+
+    status->value = value & 0x3fff;
     status->nonce++;
     status->active = true;
   }
 
- private:
   void StartRead() MOTEUS_CCM_ATTRIBUTE {
     uart_->start_dma_read(
         mjlib::base::string_span(reinterpret_cast<char*>(&buffer_[0]),
@@ -109,13 +129,8 @@ class Aksim2 {
   uint32_t last_query_start_us_ = 0;
 
   static constexpr int kResyncBytes = 3;
-  static constexpr int kMaxCount = 50;
 
-  // The "detailed" reply has a header byte, 3 bytes of position, and
-  // 2 bytes of status.
-  //
-  // We have 3 extra bytes so that we could eventually re-synchronize.
-  uint8_t buffer_[6 + kResyncBytes] = {};
+  uint8_t buffer_[3 + kResyncBytes] = {};
 };
 
 }

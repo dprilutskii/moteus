@@ -1,6 +1,6 @@
 # -*- python -*-
 
-# Copyright 2018-2022 Josh Pieper, jjp@pobox.com.
+# Copyright 2023 mjbots Robotic Systems, LLC.  info@mjbots.com
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -99,6 +99,7 @@ MOTEUS_SOURCES = [
     "board_debug.cc",
     "bootloader.h",
     "clock_manager.h",
+    "cui_amt21.h",
     "drv8323.h",
     "drv8323.cc",
     "error.cc",
@@ -106,6 +107,7 @@ MOTEUS_SOURCES = [
     "firmware_info.h",
     "firmware_info.cc",
     "ic_pz.h",
+    "ma732.h",
     "moteus_controller.h",
     "moteus_controller.cc",
     "moteus_hardfault_handler.c",
