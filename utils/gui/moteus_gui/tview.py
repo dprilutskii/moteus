@@ -353,6 +353,18 @@ class SizedTreeWidget(QtWidgets.QTreeWidget):
         return QtCore.QSize(350, 500)
 
 
+class UsersFunctionSizedWidget(QtWidgets.QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        # self.setColumnCount(2)
+        # self.headerItem().setText(0, 'Name')
+        # self.headerItem().setText(1, 'Value')
+        # self.
+
+    def sizeHint(self):
+        return QtCore.QSize(350, 500)
+
+
 class TviewConsoleWidget(HistoryConsoleWidget):
     line_input = QtCore.Signal(str)
 
@@ -917,27 +929,21 @@ class TviewMainWindow():
         self.ui.telemetryTreeWidget = SizedTreeWidget()
         self.ui.telemetryDock.setWidget(self.ui.telemetryTreeWidget)
 
-        self.ui.telemetryTreeWidget.itemExpanded.connect(
-            self._handle_tree_expanded)
-        self.ui.telemetryTreeWidget.itemCollapsed.connect(
-            self._handle_tree_collapsed)
-        self.ui.telemetryTreeWidget.setContextMenuPolicy(
-            QtCore.Qt.CustomContextMenu)
-        self.ui.telemetryTreeWidget.customContextMenuRequested.connect(
-            self._handle_telemetry_context_menu)
+        self.ui.usersFunctionTreeWidget = SizedTreeWidget()
+        self.ui.usersFunctionDock.setWidget(self.ui.usersFunctionTreeWidget)
 
-        self.ui.configTreeWidget.setItemDelegateForColumn(
-            0, NoEditDelegate(self.ui))
-        self.ui.configTreeWidget.setItemDelegateForColumn(
-            1, EditDelegate(self.ui))
+        self.ui.telemetryTreeWidget.itemExpanded.connect(self._handle_tree_expanded)
+        self.ui.telemetryTreeWidget.itemCollapsed.connect(self._handle_tree_collapsed)
+        self.ui.telemetryTreeWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.ui.telemetryTreeWidget.customContextMenuRequested.connect(self._handle_telemetry_context_menu)
 
-        self.ui.configTreeWidget.itemExpanded.connect(
-            self._handle_config_expanded)
-        self.ui.configTreeWidget.itemChanged.connect(
-            self._handle_config_item_changed)
+        self.ui.configTreeWidget.setItemDelegateForColumn(0, NoEditDelegate(self.ui))
+        self.ui.configTreeWidget.setItemDelegateForColumn(1, EditDelegate(self.ui))
 
-        self.ui.plotItemRemoveButton.clicked.connect(
-            self._handle_plot_item_remove)
+        self.ui.configTreeWidget.itemExpanded.connect(self._handle_config_expanded)
+        self.ui.configTreeWidget.itemChanged.connect(self._handle_config_item_changed)
+
+        self.ui.plotItemRemoveButton.clicked.connect(self._handle_plot_item_remove)
 
         self.console = TviewConsoleWidget()
         self.console.ansi_codes = False
@@ -973,6 +979,7 @@ class TviewMainWindow():
         self.devices = []
         self.ui.configTreeWidget.clear()
         self.ui.telemetryTreeWidget.clear()
+        # self.ui.usersFunctionWidget.clear()
 
         for device_id in moteus.moteus_tool.expand_targets(
                 self.options.devices or ['1']):
@@ -983,6 +990,10 @@ class TviewMainWindow():
             data_item = QtWidgets.QTreeWidgetItem()
             data_item.setText(0, str(device_id))
             self.ui.telemetryTreeWidget.addTopLevelItem(data_item)
+
+            # function_item = QtWidgets.QTWidget()
+            # function_item.setText(0, str(device_id))
+            # self.ui.usersFunctionWidget.addTopLevelItem(function_item)
 
             device = Device(device_id, self.transport,
                             self.console, '{}>'.format(device_id),
@@ -1207,10 +1218,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
 
     # These two commands are aliases.
-    parser.add_argument('-d', '--devices', '-t', '--target',
-                        action='append', type=str, default=[])
+    parser.add_argument('-d', '--devices', '-t', '--target', action='append', type=str, default=[])
     parser.add_argument('--can-prefix', type=int, default=0)
-
     parser.add_argument('--max-receive-bytes', default=48, type=int)
 
     moteus.make_transport_args(parser)
