@@ -31,6 +31,7 @@ import time
 import traceback
 import matplotlib
 import matplotlib.figure
+import compiler
 
 try:
     import PySide6
@@ -929,9 +930,6 @@ class TviewMainWindow():
         self.ui.telemetryTreeWidget = SizedTreeWidget()
         self.ui.telemetryDock.setWidget(self.ui.telemetryTreeWidget)
 
-        self.ui.usersFunctionTreeWidget = SizedTreeWidget()
-        self.ui.usersFunctionDock.setWidget(self.ui.usersFunctionTreeWidget)
-
         self.ui.telemetryTreeWidget.itemExpanded.connect(self._handle_tree_expanded)
         self.ui.telemetryTreeWidget.itemCollapsed.connect(self._handle_tree_collapsed)
         self.ui.telemetryTreeWidget.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
@@ -959,6 +957,20 @@ class TviewMainWindow():
         self.ui.plotWidget = PlotWidget(self.ui.plotHolderWidget)
         layout.addWidget(self.ui.plotWidget)
 
+        self.tabs = []
+        self.ui.usersFormulas = []
+        self.ui.usersTables = []
+        self.ui.buttonsPrepare = []
+        for i in range(3):
+            self.tabs.append(self.ui.findChild(QtWidgets.QWidget, 'tab' + str(i)))
+            self.ui.usersFormulas.append(self.ui.findChild(QtWidgets.QTextEdit, 'textEdit_' + str(i)))
+            self.ui.usersTables.append(self.ui.findChild(QtWidgets.QTreeWidget, 'usersFunctionTreeWidget_' + str(i)))
+            self.ui.buttonsPrepare.append(self.ui.findChild(QtWidgets.QPushButton, 'pushButtonPrepare_' + str(i)))
+            self.ui.buttonsPrepare[i].clicked.connect(lambda: self._handle_prepare(i))
+            self.tabs[i].setDisabled(True)
+
+        for i in range(len(self.options.devices)):
+            self.tabs[i].setDisabled(False)
         def update_plotwidget(value):
             self.ui.plotWidget.history_s = value
         self.ui.historySpin.valueChanged.connect(update_plotwidget)
@@ -979,10 +991,8 @@ class TviewMainWindow():
         self.devices = []
         self.ui.configTreeWidget.clear()
         self.ui.telemetryTreeWidget.clear()
-        # self.ui.usersFunctionWidget.clear()
 
-        for device_id in moteus.moteus_tool.expand_targets(
-                self.options.devices or ['1']):
+        for device_id in moteus.moteus_tool.expand_targets(self.options.devices or ['1']):
             config_item = QtWidgets.QTreeWidgetItem()
             config_item.setText(0, str(device_id))
             self.ui.configTreeWidget.addTopLevelItem(config_item)
@@ -990,10 +1000,6 @@ class TviewMainWindow():
             data_item = QtWidgets.QTreeWidgetItem()
             data_item.setText(0, str(device_id))
             self.ui.telemetryTreeWidget.addTopLevelItem(data_item)
-
-            # function_item = QtWidgets.QTWidget()
-            # function_item.setText(0, str(device_id))
-            # self.ui.usersFunctionWidget.addTopLevelItem(function_item)
 
             device = Device(device_id, self.transport,
                             self.console, '{}>'.format(device_id),
@@ -1212,6 +1218,11 @@ class TviewMainWindow():
         item = self.ui.plotItemCombo.itemData(index)
         self.ui.plotWidget.remove_plot(item)
         self.ui.plotItemCombo.removeItem(index)
+
+    def _handle_prepare(self, item):
+        print(item)
+        self.ui.usersFormulas[item]
+        ast= compiler.parse( eq )
 
 
 def main():
