@@ -31,7 +31,7 @@ import time
 import traceback
 import matplotlib
 import matplotlib.figure
-import compiler
+from sympy import symbols, Eq, parse_expr
 
 try:
     import PySide6
@@ -957,20 +957,34 @@ class TviewMainWindow():
         self.ui.plotWidget = PlotWidget(self.ui.plotHolderWidget)
         layout.addWidget(self.ui.plotWidget)
 
-        self.tabs = []
-        self.ui.usersFormulas = []
-        self.ui.usersTables = []
-        self.ui.buttonsPrepare = []
-        for i in range(3):
-            self.tabs.append(self.ui.findChild(QtWidgets.QWidget, 'tab' + str(i)))
-            self.ui.usersFormulas.append(self.ui.findChild(QtWidgets.QTextEdit, 'textEdit_' + str(i)))
-            self.ui.usersTables.append(self.ui.findChild(QtWidgets.QTreeWidget, 'usersFunctionTreeWidget_' + str(i)))
-            self.ui.buttonsPrepare.append(self.ui.findChild(QtWidgets.QPushButton, 'pushButtonPrepare_' + str(i)))
-            self.ui.buttonsPrepare[i].clicked.connect(lambda: self._handle_prepare(i))
-            self.tabs[i].setDisabled(True)
+        self.tabs = dict()
+        self.ui.usersFormulas = dict()
+        self.ui.usersTables = dict()
+        self.ui.buttonsStart = dict()
+        self.ui.buttonsPrepare = dict()
+        self.ui.startPosition = dict()
+        self.ui.endPosition = dict()
+        self.ui.dots = dict()
+        self.times = dict()
+        self.positions = dict()
+        for device_id in range(3):
+            self.tabs[device_id] = self.ui.findChild(QtWidgets.QWidget, 'tab' + str(device_id))
+            self.ui.usersFormulas[device_id] = self.ui.findChild(QtWidgets.QTextEdit, 'textEdit_' + str(device_id))
+            self.ui.startPosition[device_id] = self.ui.findChild(QtWidgets.QDoubleSpinBox, 'doubleSpinBoxStartPosition_' + str(device_id))
+            self.ui.endPosition[device_id] = self.ui.findChild(QtWidgets.QDoubleSpinBox, 'doubleSpinBoxEndPosition_' + str(device_id))
+            self.ui.dots[device_id] = self.ui.findChild(QtWidgets.QSpinBox, 'spinBox_' + str(device_id))
+            self.times[device_id] = []
+            self.positions[device_id] = []
+            table = self.ui.findChild(QtWidgets.QTableWidget, 'usersFunctionTableWidget_' + str(device_id))
+            table.setColumnCount(2)
+            table.setHorizontalHeaderLabels(['X', 'Y'])
+            self.ui.usersTables[device_id] = table
+            self.ui.buttonsPrepare[device_id] = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonPrepare_' + str(device_id))
+            self.ui.buttonsStart[device_id] = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonStart_' + str(device_id))
+            self.ui.buttonsPrepare.get(device_id).clicked.connect(lambda: self._handle_prepare(device_id))
+            self.ui.buttonsStart.get(device_id).clicked.connect(lambda: self._handle_start(device_id))
+            self.tabs.get(device_id).setDisabled(True)
 
-        for i in range(len(self.options.devices)):
-            self.tabs[i].setDisabled(False)
         def update_plotwidget(value):
             self.ui.plotWidget.history_s = value
         self.ui.historySpin.valueChanged.connect(update_plotwidget)
@@ -1009,6 +1023,8 @@ class TviewMainWindow():
 
             config_item.setData(0, QtCore.Qt.UserRole, device)
             asyncio.create_task(device.start())
+
+            self.tabs.get(device_id).setDisabled(False)
 
             self.devices.append(device)
 
@@ -1219,10 +1235,66 @@ class TviewMainWindow():
         self.ui.plotWidget.remove_plot(item)
         self.ui.plotItemCombo.removeItem(index)
 
-    def _handle_prepare(self, item):
-        print(item)
-        self.ui.usersFormulas[item]
-        ast= compiler.parse( eq )
+    def _handle_prepare(self, device_id):
+        start_position = float(self.ui.startPosition.get(device_id).value())
+        end_position = float(self.ui.endPosition.get(device_id).value())
+        dots = int(self.ui.dots.get(device_id).value())
+        table = self.ui.usersTables.get(device_id)
+        formula = self.ui.usersFormulas.get(device_id).toPlainText()
+        formula = formula.replace('^', '**')
+        x, y = symbols('x'), symbols('y')
+        table.clear()
+        table.clearContents()
+        for i in range(table.rowCount()):
+            table.removeRow(0)
+
+        equation = Eq(y, parse_expr(formula, evaluate=True))
+
+        for value in numpy.linspace(start_position, end_position, num=dots):
+            input = float(value)
+            result = float(equation.subs(x, input).rhs)
+            self.times.get(device_id).append(input)
+            self.positions.get(device_id).append(result)
+            num_rows = table.rowCount()
+            table.insertRow(table.rowCount())
+            table.setItem(num_rows, 0, QtWidgets.QTableWidgetItem(str(input)))
+            table.setItem(num_rows, 1, QtWidgets.QTableWidgetItem(str(result)))
+
+    async def _handle_start(self, device_id):
+        for device in self.devices:
+            if device.number == device_id:
+                time = self.times.get(device_id)
+                position = self.positions.get(device_id)
+
+                length = len(time)
+                if length == 0:
+                    break
+
+                await device.controller.set_stop()
+
+                i = 0
+                for pos in position:
+
+                    # The acceleration and velocity limit could be configured as
+                    # `servo.default_accel_limit` and
+                    # `servo.default_velocity_limit`.  We will override those
+                    # configurations here on a per-command basis to ensure that
+                    # the limits are always used regardless of config.
+                    results = await device.controller.set_position(
+                        position=pos,
+                        # velocity=0.0,
+                        # accel_limit=2.0,
+                        # velocity_limit=3.0,
+                        query=True,
+                    )
+
+                    print(results)
+                    if i >= length:
+                        break
+
+                    await asyncio.sleep(time[i + 1] - time[i])
+                    i += 1
+                break
 
 
 def main():
