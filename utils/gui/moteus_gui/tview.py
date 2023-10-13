@@ -983,7 +983,7 @@ class TviewMainWindow():
             self.ui.buttonsStart[device_id] = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonStart_' + str(device_id))
             self.ui.buttonsPrepare.get(device_id).clicked.connect(lambda: self._handle_prepare(device_id))
             self.ui.buttonsStart.get(device_id).clicked.connect(lambda: self._handle_start(device_id))
-            self.tabs.get(device_id).setDisabled(True)
+            self.tabs.get(device_id).setDisabled(False)
 
         def update_plotwidget(value):
             self.ui.plotWidget.history_s = value
@@ -1248,19 +1248,25 @@ class TviewMainWindow():
         for i in range(table.rowCount()):
             table.removeRow(0)
 
-        equation = Eq(y, parse_expr(formula, evaluate=True))
+        try:
+            equation = Eq(y, parse_expr(formula, evaluate=True))
+            for value in numpy.linspace(start_position, end_position, num=dots):
+                input = float(value)
+                result = float(equation.subs(x, input).rhs)
+                self.times.get(device_id).append(input)
+                self.positions.get(device_id).append(result)
+                num_rows = table.rowCount()
+                table.insertRow(table.rowCount())
+                table.setItem(num_rows, 0, QtWidgets.QTableWidgetItem(str(input)))
+                table.setItem(num_rows, 1, QtWidgets.QTableWidgetItem(str(result)))
+        except SyntaxError as e:
+            self.console.add_text('Error the formula syntax or the formula is empty: ' + str(e) + '\n')
+        except TypeError as e:
+            self.console.add_text('Error the formula variables or the formula is not readable: ' + str(e) + '\n')
 
-        for value in numpy.linspace(start_position, end_position, num=dots):
-            input = float(value)
-            result = float(equation.subs(x, input).rhs)
-            self.times.get(device_id).append(input)
-            self.positions.get(device_id).append(result)
-            num_rows = table.rowCount()
-            table.insertRow(table.rowCount())
-            table.setItem(num_rows, 0, QtWidgets.QTableWidgetItem(str(input)))
-            table.setItem(num_rows, 1, QtWidgets.QTableWidgetItem(str(result)))
 
     async def _handle_start(self, device_id):
+        self.ui.buttonsStart.get(device_id).setDisabled(True)
         for device in self.devices:
             if device.number == device_id:
                 time = self.times.get(device_id)
@@ -1295,6 +1301,7 @@ class TviewMainWindow():
                     await asyncio.sleep(time[i + 1] - time[i])
                     i += 1
                 break
+        self.ui.buttonsStart.get(device_id).setDisabled(False)
 
 
 def main():
