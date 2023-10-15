@@ -981,8 +981,8 @@ class TviewMainWindow():
             self.ui.usersTables[device_id] = table
             self.ui.buttonsPrepare[device_id] = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonPrepare_' + str(device_id))
             self.ui.buttonsStart[device_id] = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonStart_' + str(device_id))
-            self.ui.buttonsPrepare.get(device_id).clicked.connect(lambda: self._handle_prepare(device_id))
-            self.ui.buttonsStart.get(device_id).clicked.connect(lambda: self._handle_start(device_id))
+            self.ui.buttonsPrepare.get(device_id).clicked.connect(lambda: self._handle_prepare([device_id]))
+            self.ui.buttonsStart.get(device_id).clicked.connect(lambda: self._handle_start([device_id]))
             self.tabs.get(device_id).setDisabled(False)
 
         def update_plotwidget(value):
@@ -1235,46 +1235,53 @@ class TviewMainWindow():
         self.ui.plotWidget.remove_plot(item)
         self.ui.plotItemCombo.removeItem(index)
 
-    def _handle_prepare(self, device_id):
-        start_position = float(self.ui.startPosition.get(device_id).value())
-        end_position = float(self.ui.endPosition.get(device_id).value())
-        dots = int(self.ui.dots.get(device_id).value())
-        table = self.ui.usersTables.get(device_id)
-        formula = self.ui.usersFormulas.get(device_id).toPlainText()
-        formula = formula.replace('^', '**')
-        x, y = symbols('x'), symbols('y')
-        table.clear()
-        table.clearContents()
-        for i in range(table.rowCount()):
-            table.removeRow(0)
-
-        try:
-            equation = Eq(y, parse_expr(formula, evaluate=True))
-            for value in numpy.linspace(start_position, end_position, num=dots):
-                input = float(value)
-                result = float(equation.subs(x, input).rhs)
-                self.times.get(device_id).append(input)
-                self.positions.get(device_id).append(result)
-                num_rows = table.rowCount()
-                table.insertRow(table.rowCount())
-                table.setItem(num_rows, 0, QtWidgets.QTableWidgetItem(str(input)))
-                table.setItem(num_rows, 1, QtWidgets.QTableWidgetItem(str(result)))
-        except SyntaxError as e:
-            self.console.add_text('Error the formula syntax or the formula is empty: ' + str(e) + '\n')
-        except TypeError as e:
-            self.console.add_text('Error the formula variables or the formula is not readable: ' + str(e) + '\n')
-
-
-    async def _handle_start(self, device_id):
-        self.ui.buttonsStart.get(device_id).setDisabled(True)
+    def _handle_prepare(self, ids: list):
         for device in self.devices:
-            if device.number == device_id:
+            device_id = device.number
+            if device_id in ids:
+                start_position = float(self.ui.startPosition.get(device_id).value())
+                end_position = float(self.ui.endPosition.get(device_id).value())
+                dots = int(self.ui.dots.get(device_id).value())
+                table = self.ui.usersTables.get(device_id)
+                formula = self.ui.usersFormulas.get(device_id).toPlainText()
+                formula = formula.replace('^', '**')
+                x, y = symbols('x'), symbols('y')
+                table.clear()
+                table.clearContents()
+                for i in range(table.rowCount()):
+                    table.removeRow(0)
+
+                try:
+                    equation = Eq(y, parse_expr(formula, evaluate=True))
+                    for value in numpy.linspace(start_position, end_position, num=dots):
+                        inp = float(value)
+                        res = float(equation.subs(x, inp).rhs)
+                        self.times.get(device_id).append(inp)
+                        self.positions.get(device_id).append(res)
+                        num_rows = table.rowCount()
+                        table.insertRow(table.rowCount())
+                        table.setItem(num_rows, 0, QtWidgets.QTableWidgetItem(str(inp)))
+                        table.setItem(num_rows, 1, QtWidgets.QTableWidgetItem(str(res)))
+                except SyntaxError as e:
+                    self.console.add_text('Error the formula syntax or the formula is empty: ' + str(e) + '\n')
+                except TypeError as e:
+                    self.console.add_text('Error the formula variables or the formula is not readable: ' + str(e) + '\n')
+
+    async def _handle_start(self, ids: list):
+        for device in self.devices:
+            device_id = device.number
+            if device_id in ids:
+                button = self.ui.buttonsStart.get(device_id)
+                button.setDisabled(True)
+
                 time = self.times.get(device_id)
                 position = self.positions.get(device_id)
 
                 length = len(time)
                 if length == 0:
-                    break
+                    continue
+
+                button.setDisabled(True)
 
                 await device.controller.set_stop()
 
@@ -1299,9 +1306,9 @@ class TviewMainWindow():
                         break
 
                     await asyncio.sleep(time[i + 1] - time[i])
+
                     i += 1
-                break
-        self.ui.buttonsStart.get(device_id).setDisabled(False)
+                button.setDisabled(False)
 
 
 def main():
