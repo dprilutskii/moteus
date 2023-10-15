@@ -20,6 +20,8 @@
 import argparse
 import asyncio
 import io
+import types
+
 import moteus
 import moteus.moteus_tool
 import numpy
@@ -605,12 +607,13 @@ class Device:
     STATE_DATA = 4
 
     def __init__(self, number, transport, console, prefix,
-                 config_tree_item, data_tree_item, can_prefix=None):
+                 config_tree_item, data_tree_item, tab, can_prefix=None):
         self.error_count = 0
         self.poll_count = 0
 
         self.number = number
         self.controller = moteus.Controller(number, can_prefix=can_prefix)
+        self._tab = tab
         self._transport = transport
         self._stream = DeviceStream(transport, self.controller)
 
@@ -639,7 +642,10 @@ class Device:
         await self.update_config()
         await self.update_telemetry()
 
+        self._tab.setDisabled(not self._schema_config)
+
         await self.run()
+
 
     async def update_config(self):
         self._updating_config = True
@@ -957,33 +963,25 @@ class TviewMainWindow():
         self.ui.plotWidget = PlotWidget(self.ui.plotHolderWidget)
         layout.addWidget(self.ui.plotWidget)
 
-        self.tabs = dict()
-        self.ui.usersFormulas = dict()
-        self.ui.usersTables = dict()
-        self.ui.buttonsStart = dict()
-        self.ui.buttonsPrepare = dict()
-        self.ui.startPosition = dict()
-        self.ui.endPosition = dict()
-        self.ui.dots = dict()
-        self.times = dict()
-        self.positions = dict()
-        for device_id in range(3):
-            self.tabs[device_id] = self.ui.findChild(QtWidgets.QWidget, 'tab' + str(device_id))
-            self.ui.usersFormulas[device_id] = self.ui.findChild(QtWidgets.QTextEdit, 'textEdit_' + str(device_id))
-            self.ui.startPosition[device_id] = self.ui.findChild(QtWidgets.QDoubleSpinBox, 'doubleSpinBoxStartPosition_' + str(device_id))
-            self.ui.endPosition[device_id] = self.ui.findChild(QtWidgets.QDoubleSpinBox, 'doubleSpinBoxEndPosition_' + str(device_id))
-            self.ui.dots[device_id] = self.ui.findChild(QtWidgets.QSpinBox, 'spinBox_' + str(device_id))
-            self.times[device_id] = []
-            self.positions[device_id] = []
-            table = self.ui.findChild(QtWidgets.QTableWidget, 'usersFunctionTableWidget_' + str(device_id))
-            table.setColumnCount(2)
-            table.setHorizontalHeaderLabels(['X', 'Y'])
-            self.ui.usersTables[device_id] = table
-            self.ui.buttonsPrepare[device_id] = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonPrepare_' + str(device_id))
-            self.ui.buttonsStart[device_id] = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonStart_' + str(device_id))
-            self.ui.buttonsPrepare.get(device_id).clicked.connect(lambda: self._handle_prepare([device_id]))
-            self.ui.buttonsStart.get(device_id).clicked.connect(lambda: self._handle_start([device_id]))
-            self.tabs.get(device_id).setDisabled(False)
+        self.ui.user_context = dict()
+        for i in range(3):
+            uc = types.SimpleNamespace()
+            uc.tab = self.ui.findChild(QtWidgets.QWidget, 'tab' + str(i))
+            uc.tab.setDisabled(True)
+            uc.usersFormula = self.ui.findChild(QtWidgets.QTextEdit, 'textEdit_' + str(i))
+            uc.startPosition = self.ui.findChild(QtWidgets.QDoubleSpinBox, 'doubleSpinBoxStartPosition_' + str(i))
+            uc.endPosition = self.ui.findChild(QtWidgets.QDoubleSpinBox, 'doubleSpinBoxEndPosition_' + str(i))
+            uc.dots = self.ui.findChild(QtWidgets.QSpinBox, 'spinBox_' + str(i))
+            uc.usersTable = self.ui.findChild(QtWidgets.QTableWidget, 'usersFunctionTableWidget_' + str(i))
+            uc.usersTable.setColumnCount(2)
+            uc.usersTable.setHorizontalHeaderLabels(['X', 'Y'])
+            uc.buttonsPrepare = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonPrepare_' + str(i))
+            uc.buttonsStart = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonStart_' + str(i))
+            uc.buttonsPrepare.clicked.connect(lambda: self._handle_prepare([1]))
+            uc.buttonsStart.clicked.connect(lambda: asyncio.create_task(self._handle_start([1])))
+            uc.times = []
+            uc.positions = []
+            self.ui.user_context[i] = uc
 
         def update_plotwidget(value):
             self.ui.plotWidget.history_s = value
@@ -1019,12 +1017,11 @@ class TviewMainWindow():
                             self.console, '{}>'.format(device_id),
                             config_item,
                             data_item,
+                            self.ui.user_context.get(device_id - 1).tab,
                             self.options.can_prefix)
 
             config_item.setData(0, QtCore.Qt.UserRole, device)
             asyncio.create_task(device.start())
-
-            self.tabs.get(device_id).setDisabled(False)
 
             self.devices.append(device)
 
@@ -1236,79 +1233,71 @@ class TviewMainWindow():
         self.ui.plotItemCombo.removeItem(index)
 
     def _handle_prepare(self, ids: list):
+        print(ids)
         for device in self.devices:
-            device_id = device.number
-            if device_id in ids:
-                start_position = float(self.ui.startPosition.get(device_id).value())
-                end_position = float(self.ui.endPosition.get(device_id).value())
-                dots = int(self.ui.dots.get(device_id).value())
-                table = self.ui.usersTables.get(device_id)
-                formula = self.ui.usersFormulas.get(device_id).toPlainText()
+            if device.number in ids:
+                uc = self.ui.user_context.get(device.number - 1)
+                start_position = float(uc.startPosition.value())
+                end_position = float(uc.endPosition.value())
+                dots = int(uc.dots.value())
+                formula = uc.usersFormula.toPlainText()
                 formula = formula.replace('^', '**')
                 x, y = symbols('x'), symbols('y')
-                table.clear()
-                table.clearContents()
-                for i in range(table.rowCount()):
-                    table.removeRow(0)
-
+                uc.usersTable.clear()
+                uc.usersTable.clearContents()
+                for i in range(uc.usersTable.rowCount()):
+                    uc.usersTable.removeRow(0)
+                uc.times = []
+                uc.positions = []
                 try:
                     equation = Eq(y, parse_expr(formula, evaluate=True))
                     for value in numpy.linspace(start_position, end_position, num=dots):
                         inp = float(value)
                         res = float(equation.subs(x, inp).rhs)
-                        self.times.get(device_id).append(inp)
-                        self.positions.get(device_id).append(res)
-                        num_rows = table.rowCount()
-                        table.insertRow(table.rowCount())
-                        table.setItem(num_rows, 0, QtWidgets.QTableWidgetItem(str(inp)))
-                        table.setItem(num_rows, 1, QtWidgets.QTableWidgetItem(str(res)))
+                        uc.times.append(inp)
+                        uc.positions.append(res)
+                        num_rows = uc.usersTable.rowCount()
+                        uc.usersTable.insertRow(uc.usersTable.rowCount())
+                        uc.usersTable.setItem(num_rows, 0, QtWidgets.QTableWidgetItem(str(inp)))
+                        uc.usersTable.setItem(num_rows, 1, QtWidgets.QTableWidgetItem(str(res)))
                 except SyntaxError as e:
                     self.console.add_text('Error the formula syntax or the formula is empty: ' + str(e) + '\n')
                 except TypeError as e:
                     self.console.add_text('Error the formula variables or the formula is not readable: ' + str(e) + '\n')
 
     async def _handle_start(self, ids: list):
+        print(ids)
         for device in self.devices:
-            device_id = device.number
-            if device_id in ids:
-                button = self.ui.buttonsStart.get(device_id)
-                button.setDisabled(True)
+            if device.number in ids:
+                uc = self.ui.user_context.get(device.number - 1)
+                length = len(uc.times)
 
-                time = self.times.get(device_id)
-                position = self.positions.get(device_id)
-
-                length = len(time)
                 if length == 0:
                     continue
 
-                button.setDisabled(True)
+                uc.buttonsStart.setDisabled(True)
 
                 await device.controller.set_stop()
 
                 i = 0
-                for pos in position:
+                for pos in uc.positions:
 
                     # The acceleration and velocity limit could be configured as
                     # `servo.default_accel_limit` and
                     # `servo.default_velocity_limit`.  We will override those
                     # configurations here on a per-command basis to ensure that
                     # the limits are always used regardless of config.
-                    results = await device.controller.set_position(
-                        position=pos,
-                        # velocity=0.0,
-                        # accel_limit=2.0,
-                        # velocity_limit=3.0,
-                        query=True,
-                    )
+                    asyncio.create_task(device.command('d pos ' + str(pos) + ' ' + '0' + ' ' + '0.2'))
 
-                    print(results)
-                    if i >= length:
+                    # print(results)
+                    if i + 1 >= length:
                         break
 
-                    await asyncio.sleep(time[i + 1] - time[i])
+                    await asyncio.sleep(uc.times[i + 1] - uc.times[i])
+                    asyncio.create_task(device.si)
 
                     i += 1
-                button.setDisabled(False)
+                uc.buttonsStart.setDisabled(False)
 
 
 def main():
