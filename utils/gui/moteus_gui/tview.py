@@ -21,6 +21,7 @@ import argparse
 import asyncio
 import io
 import types
+from functools import partial
 
 import moteus
 import moteus.moteus_tool
@@ -977,8 +978,12 @@ class TviewMainWindow():
             uc.usersTable.setHorizontalHeaderLabels(['X', 'Y'])
             uc.buttonsPrepare = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonPrepare_' + str(i))
             uc.buttonsStart = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonStart_' + str(i))
-            uc.buttonsPrepare.clicked.connect(lambda: self._handle_prepare([i + 1]))
-            uc.buttonsStart.clicked.connect(lambda: asyncio.create_task(self._handle_start([i + 1])))
+            uc.buttonsStop = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonStop_' + str(i))
+            device_id = i + 1
+            uc.buttonsPrepare.clicked.connect(partial(self._handle_prepare, [device_id]))
+            uc.buttonsStart.clicked.connect(partial(self._handle_start, [device_id]))
+            uc.buttonsStop.clicked.connect(partial(self._handle_stop, [device_id]))
+            uc.status = False
             uc.times = []
             uc.positions = []
             self.ui.user_context[i] = uc
@@ -1233,7 +1238,6 @@ class TviewMainWindow():
         self.ui.plotItemCombo.removeItem(index)
 
     def _handle_prepare(self, ids: list):
-        print(ids)
         for device in self.devices:
             if device.number in ids:
                 uc = self.ui.user_context.get(device.number - 1)
@@ -1247,6 +1251,7 @@ class TviewMainWindow():
                 uc.usersTable.clearContents()
                 for i in range(uc.usersTable.rowCount()):
                     uc.usersTable.removeRow(0)
+                uc.usersTable.setHorizontalHeaderLabels(['X', 'Y'])
                 uc.times = []
                 uc.positions = []
                 try:
@@ -1265,39 +1270,46 @@ class TviewMainWindow():
                 except TypeError as e:
                     self.console.add_text('Error the formula variables or the formula is not readable: ' + str(e) + '\n')
 
-    async def _handle_start(self, ids: list):
-        print(ids)
+    def _handle_start(self, ids: list):
         for device in self.devices:
             if device.number in ids:
                 uc = self.ui.user_context.get(device.number - 1)
-                length = len(uc.times)
 
-                if length == 0:
+                if len(uc.times) == 0:
                     continue
 
-                uc.buttonsStart.setDisabled(True)
+                async def task(_uc, _device):
+                    _uc.status = True
+                    _uc.buttonsStart.setDisabled(True)
+                    length = len(_uc.times)
 
-                # await device.controller.set_stop()
+                    i = 0
+                    for pos in _uc.positions:
 
-                i = 0
-                for pos in uc.positions:
+                        # The acceleration and velocity limit could be configured as
+                        # `servo.default_accel_limit` and
+                        # `servo.default_velocity_limit`.  We will override those
+                        # configurations here on a per-command basis to ensure that
+                        # the limits are always used regardless of config.
+                        cmd = 'd pos ' + str(pos) + ' ' + '0' + ' ' + '0.05' + '\r\n'
 
-                    # The acceleration and velocity limit could be configured as
-                    # `servo.default_accel_limit` and
-                    # `servo.default_velocity_limit`.  We will override those
-                    # configurations here on a per-command basis to ensure that
-                    # the limits are always used regardless of config.
-                    cmd = 'd pos ' + str(pos) + ' ' + '0' + ' ' + '0.2' + '\r\n'
+                        _device.write_line(cmd)
 
-                    device.write_line(cmd)
+                        if i + 1 >= length or not _uc.status:
+                            break
 
-                    if i + 1 >= length:
-                        break
+                        await asyncio.sleep(_uc.times[i + 1] - _uc.times[i])
 
-                    await asyncio.sleep(uc.times[i + 1] - uc.times[i])
+                        i += 1
+                    _uc.buttonsStart.setDisabled(False)
 
-                    i += 1
-                uc.buttonsStart.setDisabled(False)
+                asyncio.create_task(task(uc, device))
+
+    def _handle_stop(self, ids: list):
+        for device in self.devices:
+            if device.number in ids:
+                uc = self.ui.user_context.get(device.number - 1)
+                uc.status = False
 
 
 def main():
