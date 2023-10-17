@@ -977,8 +977,8 @@ class TviewMainWindow():
             uc.usersTable.setHorizontalHeaderLabels(['X', 'Y'])
             uc.buttonsPrepare = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonPrepare_' + str(i))
             uc.buttonsStart = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonStart_' + str(i))
-            uc.buttonsPrepare.clicked.connect(lambda: self._handle_prepare([1]))
-            uc.buttonsStart.clicked.connect(lambda: asyncio.create_task(self._handle_start([1])))
+            uc.buttonsPrepare.clicked.connect(lambda: self._handle_prepare([i + 1]))
+            uc.buttonsStart.clicked.connect(lambda: asyncio.create_task(self._handle_start([i + 1])))
             uc.times = []
             uc.positions = []
             self.ui.user_context[i] = uc
@@ -1277,7 +1277,7 @@ class TviewMainWindow():
 
                 uc.buttonsStart.setDisabled(True)
 
-                await device.controller.set_stop()
+                # await device.controller.set_stop()
 
                 i = 0
                 for pos in uc.positions:
@@ -1287,14 +1287,14 @@ class TviewMainWindow():
                     # `servo.default_velocity_limit`.  We will override those
                     # configurations here on a per-command basis to ensure that
                     # the limits are always used regardless of config.
-                    asyncio.create_task(device.command('d pos ' + str(pos) + ' ' + '0' + ' ' + '0.2'))
+                    cmd = 'd pos ' + str(pos) + ' ' + '0' + ' ' + '0.2' + '\r\n'
 
-                    # print(results)
+                    device.write_line(cmd)
+
                     if i + 1 >= length:
                         break
 
                     await asyncio.sleep(uc.times[i + 1] - uc.times[i])
-                    asyncio.create_task(device.si)
 
                     i += 1
                 uc.buttonsStart.setDisabled(False)
