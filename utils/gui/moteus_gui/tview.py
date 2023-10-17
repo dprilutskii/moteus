@@ -963,8 +963,11 @@ class TviewMainWindow():
         self.ui.plotHolderWidget.setLayout(layout)
         self.ui.plotWidget = PlotWidget(self.ui.plotHolderWidget)
         layout.addWidget(self.ui.plotWidget)
+        self.ui.startAll = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonStartAll')
+        self.ui.stopAll = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonStopAll')
 
         self.ui.user_context = dict()
+        device_ids = []
         for i in range(3):
             uc = types.SimpleNamespace()
             uc.tab = self.ui.findChild(QtWidgets.QWidget, 'tab' + str(i))
@@ -987,6 +990,9 @@ class TviewMainWindow():
             uc.times = []
             uc.positions = []
             self.ui.user_context[i] = uc
+            device_ids.append(device_id)
+        self.ui.startAll.clicked.connect(partial(self._handle_start, device_ids))
+        self.ui.stopAll.clicked.connect(partial(self._handle_stop, device_ids))
 
         def update_plotwidget(value):
             self.ui.plotWidget.history_s = value
@@ -1239,7 +1245,7 @@ class TviewMainWindow():
 
     def _handle_prepare(self, ids: list):
         for device in self.devices:
-            if device.number in ids:
+            if device.number in ids and device._tab.isEnabled():
                 uc = self.ui.user_context.get(device.number - 1)
                 start_position = float(uc.startPosition.value())
                 end_position = float(uc.endPosition.value())
@@ -1272,7 +1278,7 @@ class TviewMainWindow():
 
     def _handle_start(self, ids: list):
         for device in self.devices:
-            if device.number in ids:
+            if device.number in ids and device._tab.isEnabled():
                 uc = self.ui.user_context.get(device.number - 1)
 
                 if len(uc.times) == 0:
@@ -1307,7 +1313,7 @@ class TviewMainWindow():
 
     def _handle_stop(self, ids: list):
         for device in self.devices:
-            if device.number in ids:
+            if device.number in ids and device._tab.isEnabled():
                 uc = self.ui.user_context.get(device.number - 1)
                 uc.status = False
 
