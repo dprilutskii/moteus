@@ -977,7 +977,7 @@ class TviewMainWindow():
         self.ui.verticalLayoutUserFunction.addWidget(self.ui.pushButtonStopAll)
 
         logoQPixmap = QPixmap('logo_ru.png')
-        logoQPixmap.setDevicePixelRatio(4.5)
+        logoQPixmap.setDevicePixelRatio(6.5)
         logoQLabel = QtWidgets.QLabel()
         logoQLabel.setPixmap(logoQPixmap)
         logoQLabel.setMinimumHeight(30)
