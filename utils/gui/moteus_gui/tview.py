@@ -608,13 +608,13 @@ class Device:
     STATE_DATA = 4
 
     def __init__(self, number, transport, console, prefix,
-                 config_tree_item, data_tree_item, tab, can_prefix=None):
+                 config_tree_item, data_tree_item, main_window, can_prefix=None):
         self.error_count = 0
         self.poll_count = 0
 
         self.number = number
         self.controller = moteus.Controller(number, can_prefix=can_prefix)
-        self._tab = tab
+        self._main_window = main_window
         self._transport = transport
         self._stream = DeviceStream(transport, self.controller)
 
@@ -643,7 +643,9 @@ class Device:
         await self.update_config()
         await self.update_telemetry()
 
-        self._tab.setDisabled(not self._schema_config)
+
+        if self._schema_config:
+            self._main_window.add
 
         await self.run()
 
@@ -956,49 +958,124 @@ class TviewMainWindow():
         self.ui.consoleDock.setWidget(self.console)
 
         self.ui.tabifyDockWidget(self.ui.configDock, self.ui.telemetryDock)
+        self.ui.tabifyDockWidget(self.ui.telemetryDock, self.ui.usersFunctionDock)
 
         layout = QtWidgets.QVBoxLayout(self.ui.plotHolderWidget)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
         self.ui.plotHolderWidget.setLayout(layout)
         self.ui.plotWidget = PlotWidget(self.ui.plotHolderWidget)
+
         layout.addWidget(self.ui.plotWidget)
-        self.ui.startAll = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonStartAll')
-        self.ui.stopAll = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonStopAll')
 
         self.ui.user_context = dict()
         device_ids = []
+
         for i in range(3):
-            uc = types.SimpleNamespace()
-            uc.tab = self.ui.findChild(QtWidgets.QWidget, 'tab' + str(i))
-            uc.tab.setDisabled(True)
-            uc.usersFormula = self.ui.findChild(QtWidgets.QTextEdit, 'textEdit_' + str(i))
-            uc.startPosition = self.ui.findChild(QtWidgets.QDoubleSpinBox, 'doubleSpinBoxStartPosition_' + str(i))
-            uc.endPosition = self.ui.findChild(QtWidgets.QDoubleSpinBox, 'doubleSpinBoxEndPosition_' + str(i))
-            uc.dots = self.ui.findChild(QtWidgets.QSpinBox, 'spinBox_' + str(i))
-            uc.usersTable = self.ui.findChild(QtWidgets.QTableWidget, 'usersFunctionTableWidget_' + str(i))
-            uc.usersTable.setColumnCount(2)
-            uc.usersTable.setHorizontalHeaderLabels(['X', 'Y'])
-            uc.buttonsPrepare = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonPrepare_' + str(i))
-            uc.buttonsStart = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonStart_' + str(i))
-            uc.buttonsStop = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonStop_' + str(i))
-            device_id = i + 1
-            uc.buttonsPrepare.clicked.connect(partial(self._handle_prepare, [device_id]))
-            uc.buttonsStart.clicked.connect(partial(self._handle_start, [device_id]))
-            uc.buttonsStop.clicked.connect(partial(self._handle_stop, [device_id]))
-            uc.status = False
-            uc.times = []
-            uc.positions = []
-            self.ui.user_context[i] = uc
-            device_ids.append(device_id)
-        self.ui.startAll.clicked.connect(partial(self._handle_start, device_ids))
-        self.ui.stopAll.clicked.connect(partial(self._handle_stop, device_ids))
+            self.add_devices_user_function(i)
+        # self.ui.pushButtonStartAll.clicked.connect(partial(self._handle_start, device_ids))
+        # self.ui.pushButtonStopAll.clicked.connect(partial(self._handle_stop, device_ids))
 
         def update_plotwidget(value):
             self.ui.plotWidget.history_s = value
         self.ui.historySpin.valueChanged.connect(update_plotwidget)
 
         QtCore.QTimer.singleShot(0, self._handle_startup)
+
+    def add_devices_user_function(self, id):
+        uc = types.SimpleNamespace()
+
+        # uc.usersTable = self.ui.findChild(QtWidgets.QTableWidget, 'usersFunctionTableWidget_' + str(i))
+        # uc.usersTable.setColumnCount(2)
+        # uc.usersTable.setHorizontalHeaderLabels(['X', 'Y'])
+        # uc.buttonsPrepare = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonPrepare_' + str(i))
+        # uc.buttonsStart = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonStart_' + str(i))
+        # uc.buttonsStop = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonStop_' + str(i))
+        # device_id = i + 1
+        # uc.status = False
+        # uc.times = []
+        # uc.positions = []
+        # self.ui.user_context[i] = uc
+        # device_ids.append(device_id)
+
+
+        layout = QtWidgets.QHBoxLayout()
+        deviceGroup = QtWidgets.QGroupBox(str(id) + ':')
+        # X Start
+        group_box_start = QtWidgets.QGroupBox('X Start')
+        spin_box_start = QtWidgets.QDoubleSpinBox()
+        spin_box_start.setMinimumWidth(60)
+        spin_box_start.setMaximumHeight(20)
+        spin_box_start.setMinimum(0)
+        spin_box_start.setMaximum(100)
+        group_layout = QtWidgets.QVBoxLayout()
+        uc.startPosition = spin_box_start
+        group_layout.addWidget(spin_box_start)
+        group_box_start.setLayout(group_layout)
+        layout.addWidget(group_box_start)
+        # X Stop
+        group_box_stop = QtWidgets.QGroupBox('X Stop')
+        spin_box_stop = QtWidgets.QDoubleSpinBox()
+        spin_box_stop.setMinimumWidth(60)
+        spin_box_stop.setMaximumHeight(20)
+        spin_box_stop.setMinimum(0)
+        spin_box_stop.setMaximum(100)
+        spin_box_stop.setValue(100)
+        group_layout = QtWidgets.QVBoxLayout()
+        uc.endPosition = spin_box_stop
+        group_layout.addWidget(spin_box_stop)
+        group_box_stop.setLayout(group_layout)
+        layout.addWidget(group_box_stop)
+        # Y Formula
+        group_box_formula = QtWidgets.QGroupBox('Y Formula')
+        text_edit_formula = QtWidgets.QTextEdit()
+        text_edit_formula.setMaximumHeight(20)
+        uc.usersFormula = text_edit_formula
+        group_layout = QtWidgets.QVBoxLayout()
+        group_layout.addWidget(text_edit_formula)
+        group_box_formula.setLayout(group_layout)
+        layout.addWidget(group_box_formula)
+        # Torque
+        group_box_stop = QtWidgets.QGroupBox('Torque')
+        spin_box_torque = QtWidgets.QDoubleSpinBox()
+        spin_box_torque.setMinimumWidth(60)
+        spin_box_torque.setMaximumHeight(20)
+        spin_box_torque.setMinimum(0)
+        spin_box_torque.setMaximum(100)
+        spin_box_torque.setValue(0.5)
+        group_layout = QtWidgets.QVBoxLayout()
+        group_layout.addWidget(spin_box_torque)
+        group_box_stop.setLayout(group_layout)
+        layout.addWidget(group_box_stop)
+        # Points
+        group_box_points = QtWidgets.QGroupBox('Points')
+        spin_box_points = QtWidgets.QSpinBox()
+        spin_box_points.setMaximumHeight(20)
+        spin_box_points.setMinimum(1)
+        spin_box_points.setMaximum(10_000)
+        spin_box_points.setValue(1000)
+        group_layout = QtWidgets.QVBoxLayout()
+        uc.dots = spin_box_points
+        group_layout.addWidget(spin_box_points)
+        group_box_points.setLayout(group_layout)
+        layout.addWidget(group_box_points)
+        # Control
+        group_box_control = QtWidgets.QGroupBox('Control')
+        layout_buttons = QtWidgets.QHBoxLayout()
+        button_view = QtWidgets.QPushButton('Show')
+        button_view.clicked.connect(partial(self._handle_show, [id]))
+        button_start = QtWidgets.QPushButton('Start')
+        button_start.clicked.connect(partial(self._handle_start, [id]))
+        button_stop = QtWidgets.QPushButton('Stop')
+        button_stop.clicked.connect(partial(self._handle_stop, [id]))
+        for btn in [button_view, button_start, button_stop]:
+            btn.setMaximumHeight(20)
+            btn.setMaximumWidth(50)
+            layout_buttons.addWidget(btn)
+        group_box_control.setLayout(layout_buttons)
+        layout.addWidget(group_box_control)
+        deviceGroup.setLayout(layout)
+        self.ui.verticalLayoutUserFunction.addWidget(deviceGroup)
 
     def show(self):
         self.ui.show()
@@ -1028,7 +1105,7 @@ class TviewMainWindow():
                             self.console, '{}>'.format(device_id),
                             config_item,
                             data_item,
-                            self.ui.user_context.get(device_id - 1).tab,
+                            self,
                             self.options.can_prefix)
 
             config_item.setData(0, QtCore.Qt.UserRole, device)
@@ -1245,19 +1322,14 @@ class TviewMainWindow():
 
     def _handle_prepare(self, ids: list):
         for device in self.devices:
-            if device.number in ids and device._tab.isEnabled():
-                uc = self.ui.user_context.get(device.number - 1)
+            if device.number in ids:
+                uc = self.ui.user_context.get(device.number)
                 start_position = float(uc.startPosition.value())
                 end_position = float(uc.endPosition.value())
                 dots = int(uc.dots.value())
                 formula = uc.usersFormula.toPlainText()
                 formula = formula.replace('^', '**')
                 x, y = symbols('x'), symbols('y')
-                uc.usersTable.clear()
-                uc.usersTable.clearContents()
-                for i in range(uc.usersTable.rowCount()):
-                    uc.usersTable.removeRow(0)
-                uc.usersTable.setHorizontalHeaderLabels(['X', 'Y'])
                 uc.times = []
                 uc.positions = []
                 try:
@@ -1267,10 +1339,28 @@ class TviewMainWindow():
                         res = float(equation.subs(x, inp).rhs)
                         uc.times.append(inp)
                         uc.positions.append(res)
+                except SyntaxError as e:
+                    self.console.add_text('Error the formula syntax or the formula is empty: ' + str(e) + '\n')
+                except TypeError as e:
+                    self.console.add_text('Error the formula variables or the formula is not readable: ' + str(e) + '\n')
+
+    def _handle_show(self, ids: list):
+        for device in self.devices:
+            if device.number in ids:
+                uc = self.ui.user_context.get(device.number)
+                dots = int(uc.dots.value())
+                self._handle_prepare(device.number)
+                uc.usersTable.clear()
+                uc.usersTable.clearContents()
+                for i in range(uc.usersTable.rowCount()):
+                    uc.usersTable.removeRow(0)
+                uc.usersTable.setHorizontalHeaderLabels(['X', 'Y'])
+                try:
+                    for i in range(0, dots):
                         num_rows = uc.usersTable.rowCount()
                         uc.usersTable.insertRow(uc.usersTable.rowCount())
-                        uc.usersTable.setItem(num_rows, 0, QtWidgets.QTableWidgetItem(str(inp)))
-                        uc.usersTable.setItem(num_rows, 1, QtWidgets.QTableWidgetItem(str(res)))
+                        uc.usersTable.setItem(num_rows, 0, QtWidgets.QTableWidgetItem(str(uc.times.get(i))))
+                        uc.usersTable.setItem(num_rows, 1, QtWidgets.QTableWidgetItem(str(uc.positions.get(i))))
                 except SyntaxError as e:
                     self.console.add_text('Error the formula syntax or the formula is empty: ' + str(e) + '\n')
                 except TypeError as e:
@@ -1278,8 +1368,10 @@ class TviewMainWindow():
 
     def _handle_start(self, ids: list):
         for device in self.devices:
-            if device.number in ids and device._tab.isEnabled():
-                uc = self.ui.user_context.get(device.number - 1)
+            if device.number in ids:
+                uc = self.ui.user_context.get(device.number)
+
+                self._handle_prepare(device.number)
 
                 if len(uc.times) == 0:
                     continue
@@ -1288,7 +1380,7 @@ class TviewMainWindow():
                     _uc.status = True
                     _uc.buttonsStart.setDisabled(True)
                     length = len(_uc.times)
-
+                    torque = float(uc.endPosition.value())
                     i = 0
                     for pos in _uc.positions:
 
@@ -1297,7 +1389,7 @@ class TviewMainWindow():
                         # `servo.default_velocity_limit`.  We will override those
                         # configurations here on a per-command basis to ensure that
                         # the limits are always used regardless of config.
-                        cmd = 'd pos ' + str(pos) + ' ' + '0' + ' ' + '0.05' + '\r\n'
+                        cmd = 'd pos ' + str(pos) + ' ' + '0' + ' ' + str(torque).replace(',', '.') + '\r\n'
 
                         _device.write_line(cmd)
 
@@ -1313,8 +1405,8 @@ class TviewMainWindow():
 
     def _handle_stop(self, ids: list):
         for device in self.devices:
-            if device.number in ids and device._tab.isEnabled():
-                uc = self.ui.user_context.get(device.number - 1)
+            if device.number in ids:
+                uc = self.ui.user_context.get(device.number)
                 uc.status = False
 
 
