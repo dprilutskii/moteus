@@ -646,8 +646,7 @@ class Device:
 
         if self._schema_config:
             self._main_window.add_devices_user_function(self.number)
-            self._main_window.ui.pushButtonStartAll.clicked.connect(partial(self._handle_start, self._main_window._get_ids()))
-            self._main_window.ui.pushButtonStopAll.clicked.connect(partial(self._handle_stop, self._main_window._get_ids()))
+            self._main_window._update_buttons_control()
 
         await self.run()
 
@@ -987,6 +986,10 @@ class TviewMainWindow():
 
     def _get_ids(self):
         return [device.number for device in self.devices]
+
+    def _update_buttons_control(self):
+        self.ui.pushButtonStartAll.clicked.connect(partial(self._handle_start, self._get_ids()))
+        self.ui.pushButtonStopAll.clicked.connect(partial(self._handle_stop, self._get_ids()))
 
     def add_devices_user_function(self, id):
         uc = types.SimpleNamespace()
