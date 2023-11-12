@@ -973,10 +973,10 @@ class TviewMainWindow():
         self.ui.usersTable = QtWidgets.QTableWidget()
         self.ui.verticalLayoutUserFunction.addWidget(self.ui.usersTable)
         self.ui.pushButtonStartAll = QtWidgets.QPushButton('Start All')
-        self.ui.pushButtonStartAll.clicked.connect(partial(self._handle_start, [device.number for device in self.devices]))
+        self.ui.pushButtonStartAll.clicked.connect(partial(self._handle_start, self._get_ids()))
         self.ui.verticalLayoutUserFunction.addWidget(self.ui.pushButtonStartAll)
         self.ui.pushButtonStopAll = QtWidgets.QPushButton('Stop All')
-        self.ui.pushButtonStopAll.clicked.connect(partial(self._handle_stop, [device.number for device in self.devices]))
+        self.ui.pushButtonStopAll.clicked.connect(partial(self._handle_stop, self._get_ids()))
         self.ui.verticalLayoutUserFunction.addWidget(self.ui.pushButtonStopAll)
 
         def update_plotwidget(value):
@@ -984,6 +984,9 @@ class TviewMainWindow():
         self.ui.historySpin.valueChanged.connect(update_plotwidget)
 
         QtCore.QTimer.singleShot(0, self._handle_startup)
+
+    def _get_ids(self):
+        return [device.number for device in self.devices]
 
     def add_devices_user_function(self, id):
         uc = types.SimpleNamespace()
@@ -1383,6 +1386,13 @@ class TviewMainWindow():
                     length = len(_uc.times)
                     torque = float(uc.torque.value())
                     i = 0
+
+                    _device.write_line('conf set servo.max_position_slip 0.04\r\n')
+                    _device.write_line('conf set servo.default_accel_limit 3.0\r\n')
+                    _device.write_line('conf set servo.default_velocity_limit 2.0\r\n')
+                    _device.write_line('conf set servopos.position_min -1.0\r\n')
+                    _device.write_line('conf set servopos.position_max 1.0\r\n')
+
                     for pos in _uc.positions:
 
                         # The acceleration and velocity limit could be configured as
