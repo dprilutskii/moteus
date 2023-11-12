@@ -994,6 +994,7 @@ class TviewMainWindow():
 
     def add_devices_user_function(self, id):
         uc = types.SimpleNamespace()
+        uc.status = True
         self.ui.user_context[id] = uc
         uc.times = []
         uc.positions = []
@@ -1424,6 +1425,7 @@ class TviewMainWindow():
                 asyncio.create_task(task(uc, device))
 
     def _handle_stop(self, ids: list):
+        print(ids)
         for device in self.devices:
             if device.number in ids:
                 uc = self.ui.user_context.get(device.number)
