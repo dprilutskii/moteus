@@ -1371,7 +1371,6 @@ class TviewMainWindow():
                     self.console.add_text('Error the formula variables or the formula is not readable: ' + str(e) + '\n')
 
     def _handle_start(self, ids: list):
-        print(ids)
         for device in self.devices:
             if device.number in ids:
                 uc = self.ui.user_context.get(device.number)
@@ -1421,7 +1420,6 @@ class TviewMainWindow():
                 asyncio.create_task(task(uc, device))
 
     def _handle_stop(self, ids: list):
-        print(ids)
         for device in self.devices:
             if device.number in ids:
                 uc = self.ui.user_context.get(device.number)
