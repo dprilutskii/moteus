@@ -645,7 +645,7 @@ class Device:
 
 
         if self._schema_config:
-            self._main_window.add
+            self._main_window.add.add_devices_user_function(self.number)
 
         await self.run()
 
@@ -969,12 +969,15 @@ class TviewMainWindow():
         layout.addWidget(self.ui.plotWidget)
 
         self.ui.user_context = dict()
-        device_ids = []
 
-        for i in range(3):
-            self.add_devices_user_function(i)
-        # self.ui.pushButtonStartAll.clicked.connect(partial(self._handle_start, device_ids))
-        # self.ui.pushButtonStopAll.clicked.connect(partial(self._handle_stop, device_ids))
+        self.ui.usersTable = QtWidgets.QTableWidget()
+        self.ui.verticalLayoutUserFunction.addWidget(self.ui.usersTable)
+        self.ui.pushButtonStartAll = QtWidgets.QPushButton('Start All')
+        self.ui.pushButtonStartAll.clicked.connect(partial(self._handle_start, [device.number for device in self.devices]))
+        self.ui.verticalLayoutUserFunction.addWidget(self.ui.pushButtonStartAll)
+        self.ui.pushButtonStopAll = QtWidgets.QPushButton('StopAll')
+        self.ui.pushButtonStopAll.clicked.connect(partial(self._handle_stop, [device.number for device in self.devices]))
+        self.ui.verticalLayoutUserFunction.addWidget(self.ui.pushButtonStopAll)
 
         def update_plotwidget(value):
             self.ui.plotWidget.history_s = value
@@ -984,20 +987,9 @@ class TviewMainWindow():
 
     def add_devices_user_function(self, id):
         uc = types.SimpleNamespace()
-
-        # uc.usersTable = self.ui.findChild(QtWidgets.QTableWidget, 'usersFunctionTableWidget_' + str(i))
-        # uc.usersTable.setColumnCount(2)
-        # uc.usersTable.setHorizontalHeaderLabels(['X', 'Y'])
-        # uc.buttonsPrepare = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonPrepare_' + str(i))
-        # uc.buttonsStart = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonStart_' + str(i))
-        # uc.buttonsStop = self.ui.findChild(QtWidgets.QPushButton, 'pushButtonStop_' + str(i))
-        # device_id = i + 1
-        # uc.status = False
-        # uc.times = []
-        # uc.positions = []
-        # self.ui.user_context[i] = uc
-        # device_ids.append(device_id)
-
+        self.ui.user_context[id] = uc
+        uc.times = []
+        uc.positions = []
 
         layout = QtWidgets.QHBoxLayout()
         deviceGroup = QtWidgets.QGroupBox(str(id) + ':')
@@ -1350,17 +1342,17 @@ class TviewMainWindow():
                 uc = self.ui.user_context.get(device.number)
                 dots = int(uc.dots.value())
                 self._handle_prepare(device.number)
-                uc.usersTable.clear()
-                uc.usersTable.clearContents()
-                for i in range(uc.usersTable.rowCount()):
-                    uc.usersTable.removeRow(0)
-                uc.usersTable.setHorizontalHeaderLabels(['X', 'Y'])
+                self.ui.usersTable.clear()
+                self.ui.usersTable.clearContents()
+                for i in range(self.ui.usersTable.rowCount()):
+                    self.ui.usersTable.removeRow(0)
+                self.ui.usersTable.setHorizontalHeaderLabels(['X', 'Y'])
                 try:
                     for i in range(0, dots):
-                        num_rows = uc.usersTable.rowCount()
-                        uc.usersTable.insertRow(uc.usersTable.rowCount())
-                        uc.usersTable.setItem(num_rows, 0, QtWidgets.QTableWidgetItem(str(uc.times.get(i))))
-                        uc.usersTable.setItem(num_rows, 1, QtWidgets.QTableWidgetItem(str(uc.positions.get(i))))
+                        num_rows = self.ui.usersTable.rowCount()
+                        self.ui.usersTable.insertRow(self.ui.usersTable.rowCount())
+                        self.ui.usersTable.setItem(num_rows, 0, QtWidgets.QTableWidgetItem(str(uc.times.get(i))))
+                        self.ui.usersTable.setItem(num_rows, 1, QtWidgets.QTableWidgetItem(str(uc.positions.get(i))))
                 except SyntaxError as e:
                     self.console.add_text('Error the formula syntax or the formula is empty: ' + str(e) + '\n')
                 except TypeError as e:
