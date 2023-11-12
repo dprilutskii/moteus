@@ -976,11 +976,13 @@ class TviewMainWindow():
         self.ui.pushButtonStopAll = QtWidgets.QPushButton('Остановка всех двигателей')
         self.ui.verticalLayoutUserFunction.addWidget(self.ui.pushButtonStopAll)
 
-        logoQPixmap = QPixmap('./logo_osnovnoy_goriz_RUS.png')
+        logoQPixmap = QPixmap('logo_ru.png')
         logoQPixmap.setDevicePixelRatio(4.5)
-        logolabel = QtWidgets.QLabel()
-        logolabel.setPixmap(logoQPixmap)
-        self.ui.toolBar.addWidget(logolabel)
+        logoQLabel = QtWidgets.QLabel()
+        logoQLabel.setPixmap(logoQPixmap)
+        logoQLabel.setMinimumHeight(30)
+        logoQLabel.setMaximumHeight(30)
+        self.ui.toolBar.addWidget(logoQLabel)
 
         def update_plotwidget(value):
             self.ui.plotWidget.history_s = value
@@ -1001,7 +1003,7 @@ class TviewMainWindow():
         layout = QtWidgets.QHBoxLayout()
         deviceGroup = QtWidgets.QGroupBox(str(id) + ':')
         # X Start
-        group_box_start = QtWidgets.QGroupBox('Начальное знач. X')
+        group_box_start = QtWidgets.QGroupBox('Начальное X')
         spin_box_start = QtWidgets.QDoubleSpinBox()
         spin_box_start.setMinimumWidth(60)
         spin_box_start.setMaximumHeight(20)
@@ -1013,7 +1015,7 @@ class TviewMainWindow():
         group_box_start.setLayout(group_layout)
         layout.addWidget(group_box_start)
         # X Stop
-        group_box_stop = QtWidgets.QGroupBox('Конечное знач. X')
+        group_box_stop = QtWidgets.QGroupBox('Конечное X')
         spin_box_stop = QtWidgets.QDoubleSpinBox()
         spin_box_stop.setMinimumWidth(60)
         spin_box_stop.setMaximumHeight(20)
@@ -1026,7 +1028,7 @@ class TviewMainWindow():
         group_box_stop.setLayout(group_layout)
         layout.addWidget(group_box_stop)
         # Y Formula
-        group_box_formula = QtWidgets.QGroupBox('Формула Y')
+        group_box_formula = QtWidgets.QGroupBox('Функция Y')
         text_edit_formula = QtWidgets.QTextEdit()
         text_edit_formula.setMaximumHeight(20)
         uc.usersFormula = text_edit_formula
