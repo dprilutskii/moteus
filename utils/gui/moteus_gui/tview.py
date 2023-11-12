@@ -1388,10 +1388,15 @@ class TviewMainWindow():
                     i = 0
 
                     _device.write_line('conf set servo.max_position_slip 0.04\r\n')
+                    await asyncio.sleep(0.05)
                     _device.write_line('conf set servo.default_accel_limit 3.0\r\n')
+                    await asyncio.sleep(0.05)
                     _device.write_line('conf set servo.default_velocity_limit 2.0\r\n')
+                    await asyncio.sleep(0.05)
                     _device.write_line('conf set servopos.position_min -1.0\r\n')
+                    await asyncio.sleep(0.05)
                     _device.write_line('conf set servopos.position_max 1.0\r\n')
+                    await asyncio.sleep(0.05)
 
                     for pos in _uc.positions:
 
