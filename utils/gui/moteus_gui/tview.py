@@ -645,7 +645,7 @@ class Device:
 
 
         if self._schema_config:
-            self._main_window.add.add_devices_user_function(self.number)
+            self._main_window.add_devices_user_function(self.number)
 
         await self.run()
 
@@ -975,7 +975,7 @@ class TviewMainWindow():
         self.ui.pushButtonStartAll = QtWidgets.QPushButton('Start All')
         self.ui.pushButtonStartAll.clicked.connect(partial(self._handle_start, [device.number for device in self.devices]))
         self.ui.verticalLayoutUserFunction.addWidget(self.ui.pushButtonStartAll)
-        self.ui.pushButtonStopAll = QtWidgets.QPushButton('StopAll')
+        self.ui.pushButtonStopAll = QtWidgets.QPushButton('Stop All')
         self.ui.pushButtonStopAll.clicked.connect(partial(self._handle_stop, [device.number for device in self.devices]))
         self.ui.verticalLayoutUserFunction.addWidget(self.ui.pushButtonStopAll)
 
@@ -1035,6 +1035,7 @@ class TviewMainWindow():
         spin_box_torque.setMinimum(0)
         spin_box_torque.setMaximum(100)
         spin_box_torque.setValue(0.5)
+        uc.torque = spin_box_torque
         group_layout = QtWidgets.QVBoxLayout()
         group_layout.addWidget(spin_box_torque)
         group_box_stop.setLayout(group_layout)
@@ -1056,10 +1057,13 @@ class TviewMainWindow():
         layout_buttons = QtWidgets.QHBoxLayout()
         button_view = QtWidgets.QPushButton('Show')
         button_view.clicked.connect(partial(self._handle_show, [id]))
+        uc.buttonShow = button_view
         button_start = QtWidgets.QPushButton('Start')
         button_start.clicked.connect(partial(self._handle_start, [id]))
+        uc.buttonStart = button_start
         button_stop = QtWidgets.QPushButton('Stop')
         button_stop.clicked.connect(partial(self._handle_stop, [id]))
+        uc.buttonStop = button_stop
         for btn in [button_view, button_start, button_stop]:
             btn.setMaximumHeight(20)
             btn.setMaximumWidth(50)
@@ -1341,38 +1345,43 @@ class TviewMainWindow():
             if device.number in ids:
                 uc = self.ui.user_context.get(device.number)
                 dots = int(uc.dots.value())
-                self._handle_prepare(device.number)
+                self._handle_prepare([device.number])
                 self.ui.usersTable.clear()
                 self.ui.usersTable.clearContents()
                 for i in range(self.ui.usersTable.rowCount()):
                     self.ui.usersTable.removeRow(0)
+                self.ui.usersTable.setColumnCount(2)
+                self.ui.usersTable.setColumnWidth(0, 140)
+                self.ui.usersTable.setColumnWidth(1, 140)
                 self.ui.usersTable.setHorizontalHeaderLabels(['X', 'Y'])
                 try:
-                    for i in range(0, dots):
-                        num_rows = self.ui.usersTable.rowCount()
-                        self.ui.usersTable.insertRow(self.ui.usersTable.rowCount())
-                        self.ui.usersTable.setItem(num_rows, 0, QtWidgets.QTableWidgetItem(str(uc.times.get(i))))
-                        self.ui.usersTable.setItem(num_rows, 1, QtWidgets.QTableWidgetItem(str(uc.positions.get(i))))
+                    if len(uc.times) > 0:
+                        for i in range(0, dots):
+                            num_rows = self.ui.usersTable.rowCount()
+                            self.ui.usersTable.insertRow(self.ui.usersTable.rowCount())
+                            self.ui.usersTable.setItem(num_rows, 0, QtWidgets.QTableWidgetItem(str(uc.times[i])))
+                            self.ui.usersTable.setItem(num_rows, 1, QtWidgets.QTableWidgetItem(str(uc.positions[i])))
                 except SyntaxError as e:
                     self.console.add_text('Error the formula syntax or the formula is empty: ' + str(e) + '\n')
                 except TypeError as e:
                     self.console.add_text('Error the formula variables or the formula is not readable: ' + str(e) + '\n')
 
     def _handle_start(self, ids: list):
+        print(ids)
         for device in self.devices:
             if device.number in ids:
                 uc = self.ui.user_context.get(device.number)
 
-                self._handle_prepare(device.number)
+                self._handle_prepare([device.number])
 
                 if len(uc.times) == 0:
                     continue
 
                 async def task(_uc, _device):
                     _uc.status = True
-                    _uc.buttonsStart.setDisabled(True)
+                    _uc.buttonStart.setDisabled(True)
                     length = len(_uc.times)
-                    torque = float(uc.endPosition.value())
+                    torque = float(uc.torque.value())
                     i = 0
                     for pos in _uc.positions:
 
@@ -1391,7 +1400,7 @@ class TviewMainWindow():
                         await asyncio.sleep(_uc.times[i + 1] - _uc.times[i])
 
                         i += 1
-                    _uc.buttonsStart.setDisabled(False)
+                    _uc.buttonStart.setDisabled(False)
 
                 asyncio.create_task(task(uc, device))
 
