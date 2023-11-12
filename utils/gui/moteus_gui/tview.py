@@ -646,6 +646,8 @@ class Device:
 
         if self._schema_config:
             self._main_window.add_devices_user_function(self.number)
+            self._main_window.ui.pushButtonStartAll.clicked.connect(partial(self._handle_start, self._get_ids()))
+            self._main_window.ui.pushButtonStopAll.clicked.connect(partial(self._handle_stop, self._get_ids()))
 
         await self.run()
 
@@ -973,10 +975,8 @@ class TviewMainWindow():
         self.ui.usersTable = QtWidgets.QTableWidget()
         self.ui.verticalLayoutUserFunction.addWidget(self.ui.usersTable)
         self.ui.pushButtonStartAll = QtWidgets.QPushButton('Start All')
-        self.ui.pushButtonStartAll.clicked.connect(partial(self._handle_start, self._get_ids()))
         self.ui.verticalLayoutUserFunction.addWidget(self.ui.pushButtonStartAll)
         self.ui.pushButtonStopAll = QtWidgets.QPushButton('Stop All')
-        self.ui.pushButtonStopAll.clicked.connect(partial(self._handle_stop, self._get_ids()))
         self.ui.verticalLayoutUserFunction.addWidget(self.ui.pushButtonStopAll)
 
         def update_plotwidget(value):
