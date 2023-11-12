@@ -646,7 +646,8 @@ class Device:
 
         if self._schema_config:
             self._main_window.add_devices_user_function(self.number)
-            self._main_window._update_buttons_control()
+            self._main_window.ui.pushButtonStartAll.clicked.connect(partial(self._main_window._handle_start, [self.number]))
+            self._main_window.ui.pushButtonStopAll.clicked.connect(partial(self._main_window._handle_stop, [self.number]))
 
         await self.run()
 
