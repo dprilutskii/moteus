@@ -1073,7 +1073,7 @@ class TviewMainWindow():
         uc.buttonStop = button_stop
         for btn in [button_view, button_start, button_stop]:
             btn.setMaximumHeight(20)
-            btn.setMaximumWidth(50)
+            btn.setMaximumWidth(70)
             layout_buttons.addWidget(btn)
         group_box_control.setLayout(layout_buttons)
         layout.addWidget(group_box_control)
