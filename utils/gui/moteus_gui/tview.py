@@ -34,6 +34,7 @@ import time
 import traceback
 import matplotlib
 import matplotlib.figure
+from PySide6.QtGui import QPixmap
 from sympy import symbols, Eq, parse_expr
 
 try:
@@ -289,7 +290,7 @@ class PlotWidget(QtWidgets.QWidget):
         self.right_axis = None
 
         self.toolbar = qt_backend.NavigationToolbar2QT(self.canvas, self)
-        self.pause_action = QtWidgets.QAction(u'Pause', self)
+        self.pause_action = QtWidgets.QAction(u'Пауза', self)
         self.pause_action.setCheckable(True)
         self.pause_action.toggled.connect(self._handle_pause)
         self.toolbar.addAction(self.pause_action)
@@ -350,8 +351,8 @@ class SizedTreeWidget(QtWidgets.QTreeWidget):
     def __init__(self, parent=None):
         QtWidgets.QTreeWidget.__init__(self, parent)
         self.setColumnCount(2)
-        self.headerItem().setText(0, 'Name')
-        self.headerItem().setText(1, 'Value')
+        self.headerItem().setText(0, 'Имя')
+        self.headerItem().setText(1, 'Значение')
 
     def sizeHint(self):
         return QtCore.QSize(350, 500)
@@ -360,10 +361,6 @@ class SizedTreeWidget(QtWidgets.QTreeWidget):
 class UsersFunctionSizedWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        # self.setColumnCount(2)
-        # self.headerItem().setText(0, 'Name')
-        # self.headerItem().setText(1, 'Value')
-        # self.
 
     def sizeHint(self):
         return QtCore.QSize(350, 500)
@@ -974,10 +971,16 @@ class TviewMainWindow():
 
         self.ui.usersTable = QtWidgets.QTableWidget()
         self.ui.verticalLayoutUserFunction.addWidget(self.ui.usersTable)
-        self.ui.pushButtonStartAll = QtWidgets.QPushButton('Start All')
+        self.ui.pushButtonStartAll = QtWidgets.QPushButton('Запуск всех двигателей')
         self.ui.verticalLayoutUserFunction.addWidget(self.ui.pushButtonStartAll)
-        self.ui.pushButtonStopAll = QtWidgets.QPushButton('Stop All')
+        self.ui.pushButtonStopAll = QtWidgets.QPushButton('Остановка всех двигателей')
         self.ui.verticalLayoutUserFunction.addWidget(self.ui.pushButtonStopAll)
+
+        logoQPixmap = QPixmap('./logo_osnovnoy_goriz_RUS.png')
+        logoQPixmap.setDevicePixelRatio(4.5)
+        logolabel = QtWidgets.QLabel()
+        logolabel.setPixmap(logoQPixmap)
+        self.ui.toolBar.addWidget(logolabel)
 
         def update_plotwidget(value):
             self.ui.plotWidget.history_s = value
@@ -998,7 +1001,7 @@ class TviewMainWindow():
         layout = QtWidgets.QHBoxLayout()
         deviceGroup = QtWidgets.QGroupBox(str(id) + ':')
         # X Start
-        group_box_start = QtWidgets.QGroupBox('X Start')
+        group_box_start = QtWidgets.QGroupBox('Начальное знач. X')
         spin_box_start = QtWidgets.QDoubleSpinBox()
         spin_box_start.setMinimumWidth(60)
         spin_box_start.setMaximumHeight(20)
@@ -1010,7 +1013,7 @@ class TviewMainWindow():
         group_box_start.setLayout(group_layout)
         layout.addWidget(group_box_start)
         # X Stop
-        group_box_stop = QtWidgets.QGroupBox('X Stop')
+        group_box_stop = QtWidgets.QGroupBox('Конечное знач. X')
         spin_box_stop = QtWidgets.QDoubleSpinBox()
         spin_box_stop.setMinimumWidth(60)
         spin_box_stop.setMaximumHeight(20)
@@ -1023,7 +1026,7 @@ class TviewMainWindow():
         group_box_stop.setLayout(group_layout)
         layout.addWidget(group_box_stop)
         # Y Formula
-        group_box_formula = QtWidgets.QGroupBox('Y Formula')
+        group_box_formula = QtWidgets.QGroupBox('Формула Y')
         text_edit_formula = QtWidgets.QTextEdit()
         text_edit_formula.setMaximumHeight(20)
         uc.usersFormula = text_edit_formula
@@ -1032,7 +1035,7 @@ class TviewMainWindow():
         group_box_formula.setLayout(group_layout)
         layout.addWidget(group_box_formula)
         # Torque
-        group_box_stop = QtWidgets.QGroupBox('Torque')
+        group_box_stop = QtWidgets.QGroupBox('Крутящий момент')
         spin_box_torque = QtWidgets.QDoubleSpinBox()
         spin_box_torque.setMinimumWidth(60)
         spin_box_torque.setMaximumHeight(20)
@@ -1045,7 +1048,7 @@ class TviewMainWindow():
         group_box_stop.setLayout(group_layout)
         layout.addWidget(group_box_stop)
         # Points
-        group_box_points = QtWidgets.QGroupBox('Points')
+        group_box_points = QtWidgets.QGroupBox('Кол. точек для построения')
         spin_box_points = QtWidgets.QSpinBox()
         spin_box_points.setMaximumHeight(20)
         spin_box_points.setMinimum(1)
@@ -1057,15 +1060,15 @@ class TviewMainWindow():
         group_box_points.setLayout(group_layout)
         layout.addWidget(group_box_points)
         # Control
-        group_box_control = QtWidgets.QGroupBox('Control')
+        group_box_control = QtWidgets.QGroupBox('Управление')
         layout_buttons = QtWidgets.QHBoxLayout()
-        button_view = QtWidgets.QPushButton('Show')
+        button_view = QtWidgets.QPushButton('Показать')
         button_view.clicked.connect(partial(self._handle_show, [id]))
         uc.buttonShow = button_view
-        button_start = QtWidgets.QPushButton('Start')
+        button_start = QtWidgets.QPushButton('Запуск')
         button_start.clicked.connect(partial(self._handle_start, [id]))
         uc.buttonStart = button_start
-        button_stop = QtWidgets.QPushButton('Stop')
+        button_stop = QtWidgets.QPushButton('Остановка')
         button_stop.clicked.connect(partial(self._handle_stop, [id]))
         uc.buttonStop = button_stop
         for btn in [button_view, button_start, button_stop]:
@@ -1226,12 +1229,12 @@ class TviewMainWindow():
             return
 
         menu = QtWidgets.QMenu(self.ui)
-        left_action = menu.addAction('Plot Left')
-        right_action = menu.addAction('Plot Right')
-        left_std_action = menu.addAction('Plot StdDev Left')
-        right_std_action = menu.addAction('Plot StdDev Right')
-        left_mean_action = menu.addAction('Plot Mean Left')
-        right_mean_action = menu.addAction('Plot Mean Right')
+        left_action = menu.addAction('Построить на графике слева')
+        right_action = menu.addAction('Построить на графике справа')
+        left_std_action = menu.addAction('Построить средн.квадрат. отклонение слева')
+        right_std_action = menu.addAction('Построить средн.квадрат. отклонение справа')
+        left_mean_action = menu.addAction('Построить среднее слева')
+        right_mean_action = menu.addAction('Построить среднее справа')
 
         plot_actions = [
             left_action,
@@ -1247,12 +1250,12 @@ class TviewMainWindow():
         mean_actions = [left_mean_action, right_mean_action]
 
         menu.addSeparator()
-        copy_name = menu.addAction('Copy Name')
-        copy_value = menu.addAction('Copy Value')
+        copy_name = menu.addAction('Скопировать название')
+        copy_value = menu.addAction('Скопировать значение')
 
         menu.addSeparator()
-        fmt_standard_action = menu.addAction('Standard Format')
-        fmt_hex_action = menu.addAction('Hex Format')
+        fmt_standard_action = menu.addAction('Стандартный формат')
+        fmt_hex_action = menu.addAction('Шестнадцатеричный формат')
 
         requested = menu.exec_(self.ui.telemetryTreeWidget.mapToGlobal(pos))
 
@@ -1387,16 +1390,13 @@ class TviewMainWindow():
                     torque = float(uc.torque.value())
                     i = 0
 
-                    _device.write_line('conf set servo.max_position_slip 0.04\r\n')
-                    await asyncio.sleep(0.05)
-                    _device.write_line('conf set servo.default_accel_limit 3.0\r\n')
-                    await asyncio.sleep(0.05)
-                    _device.write_line('conf set servo.default_velocity_limit 2.0\r\n')
-                    await asyncio.sleep(0.05)
-                    _device.write_line('conf set servopos.position_min -1.0\r\n')
-                    await asyncio.sleep(0.05)
-                    _device.write_line('conf set servopos.position_max 1.0\r\n')
-                    await asyncio.sleep(0.05)
+                    for cmd in ['conf set servo.max_position_slip 0.04\r\n',
+                                'conf set servo.default_accel_limit 3.0\r\n',
+                                'conf set servo.default_velocity_limit 2.0\r\n',
+                                'conf set servopos.position_min -1.0\r\n',
+                                'conf set servopos.position_max 1.0\r\n']:
+                        _device.write_line(cmd)
+                        await asyncio.sleep(0.05)
 
                     for pos in _uc.positions:
 
