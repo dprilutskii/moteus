@@ -69,11 +69,17 @@ If you want to use these names in your project or product, please read the [Trad
 
 # Change id number of servo #
 
-```console
-python -m moteus.moteus_tool -t <old_number> --console
-conf set id.id <new_number>
+```commandline
+python -m moteus.moteus_tool -t old_number_id --console
+conf set id.id new_number_id
 <CTRL-C>
-python -m moteus.moteus_tool -t <new_number> --console
+python -m moteus.moteus_tool -t new_number_id --console
 conf write
 <CTRL-C>
+```
+
+# Calibration #
+
+```commandline
+python -m moteus.moteus_tool --target number_id --calibrate
 ```
