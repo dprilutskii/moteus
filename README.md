@@ -66,3 +66,14 @@ https://www.apache.org/licenses/LICENSE-2.0
 mjbots Robotic Systems LLC owns and protects the "mjbots" and "moteus" trademarks in many jurisdictions.
 
 If you want to use these names in your project or product, please read the [Trademark Policy](https://mjbots.com/trademark-policy)
+
+# Change id number of servo #
+
+```console
+python -m moteus.moteus_tool -t <old_number> --console
+conf set id.id <new_number>
+<CTRL-C>
+python -m moteus.moteus_tool -t <new_number> --console
+conf write
+<CTRL-C>
+```
