@@ -34,6 +34,7 @@ import time
 import traceback
 import matplotlib
 import matplotlib.figure
+import json
 from sympy import symbols, Eq, parse_expr
 
 try:
@@ -360,10 +361,6 @@ class SizedTreeWidget(QtWidgets.QTreeWidget):
 class UsersFunctionSizedWidget(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
-        # self.setColumnCount(2)
-        # self.headerItem().setText(0, 'Name')
-        # self.headerItem().setText(1, 'Value')
-        # self.
 
     def sizeHint(self):
         return QtCore.QSize(350, 500)
@@ -919,6 +916,87 @@ class Device:
         return item
 
 
+class CustomDoubleSpinBox(QtWidgets.QDoubleSpinBox):
+
+    def __init__(self, id: str, name: str):
+        super().__init__()
+        self.def_value = -1.0
+        self.file_name = id + '_' + name + '.property'
+        try:
+            self.properties = self._load_properties()
+        except FileNotFoundError:
+            properties = {'value': self.def_value}
+            with open(self.file_name, 'w') as f:
+                json.dump(properties, f)
+            self.properties = self._load_properties()
+        super().setValue(float(self.properties['value']))
+
+    def _load_properties(self):
+        properties = {}
+        with open(self.file_name, 'r') as f:
+            properties = json.load(f)
+        return properties
+
+    def save_properties(self):
+        properties = {'value': super().value()}
+        with open(self.file_name, 'w') as f:
+            json.dump(properties, f)
+
+
+class CustomTextEdit(QtWidgets.QTextEdit):
+
+    def __init__(self, id: str, name: str):
+        super().__init__()
+        self.def_value = ''
+        self.file_name = id + '_' + name + '.property'
+        try:
+            self.properties = self._load_properties()
+        except FileNotFoundError:
+            properties = {'text': self.def_value}
+            with open(self.file_name, 'w') as f:
+                json.dump(properties, f)
+            self.properties = self._load_properties()
+        super().setText(float(self.properties['text']))
+
+    def _load_properties(self):
+        properties = {}
+        with open(self.file_name, 'r') as f:
+            properties = json.load(f)
+        return properties
+
+    def save_properties(self):
+        properties = {'text': super().toPlainText()}
+        with open(self.file_name, 'w') as f:
+            json.dump(properties, f)
+
+
+class CustomSpinBox(QtWidgets.QSpinBox):
+
+    def __init__(self, id: str, name: str):
+        super().__init__()
+        self.def_value = -1
+        self.file_name = id + '_' + name + '.property'
+        try:
+            self.properties = self._load_properties()
+        except FileNotFoundError:
+            properties = {'value': self.def_value}
+            with open(self.file_name, 'w') as f:
+                json.dump(properties, f)
+            self.properties = self._load_properties()
+        super().setValue(int(self.properties['value']))
+
+    def _load_properties(self):
+        properties = {}
+        with open(self.file_name, 'r') as f:
+            properties = json.load(f)
+        return properties
+
+    def save_properties(self):
+        properties = {'value': super().value()}
+        with open(self.file_name, 'w') as f:
+            json.dump(properties, f)
+
+
 class TviewMainWindow():
     def __init__(self, options, parent=None):
         self.options = options
@@ -999,61 +1077,61 @@ class TviewMainWindow():
         deviceGroup = QtWidgets.QGroupBox(str(id) + ':')
         # X Start
         group_box_start = QtWidgets.QGroupBox('X Start')
-        spin_box_start = QtWidgets.QDoubleSpinBox()
-        spin_box_start.setMinimumWidth(60)
-        spin_box_start.setMaximumHeight(20)
-        spin_box_start.setMinimum(0)
-        spin_box_start.setMaximum(100)
+        uc.startPosition = CustomDoubleSpinBox(id, 'x_start')
+        uc.startPosition.setMinimumWidth(60)
+        uc.startPosition.setMaximumHeight(20)
+        uc.startPosition.setMinimum(0)
+        uc.startPosition.setMaximum(100)
+        if uc.startPosition.value() < 0:
+            uc.startPosition.setValue(0.0)
         group_layout = QtWidgets.QVBoxLayout()
-        uc.startPosition = spin_box_start
-        group_layout.addWidget(spin_box_start)
+        group_layout.addWidget(uc.startPosition)
         group_box_start.setLayout(group_layout)
         layout.addWidget(group_box_start)
         # X Stop
         group_box_stop = QtWidgets.QGroupBox('X Stop')
-        spin_box_stop = QtWidgets.QDoubleSpinBox()
-        spin_box_stop.setMinimumWidth(60)
-        spin_box_stop.setMaximumHeight(20)
-        spin_box_stop.setMinimum(0)
-        spin_box_stop.setMaximum(100)
-        spin_box_stop.setValue(100)
+        uc.endPosition = CustomDoubleSpinBox(id, 'x_stop')
+        uc.endPosition.setMinimumWidth(60)
+        uc.endPosition.setMaximumHeight(20)
+        uc.endPosition.setMinimum(0)
+        uc.endPosition.setMaximum(100)
+        if uc.endPosition.value() < 0:
+            uc.endPosition.setValue(100.0)
         group_layout = QtWidgets.QVBoxLayout()
-        uc.endPosition = spin_box_stop
-        group_layout.addWidget(spin_box_stop)
+        group_layout.addWidget(uc.endPosition)
         group_box_stop.setLayout(group_layout)
         layout.addWidget(group_box_stop)
         # Y Formula
         group_box_formula = QtWidgets.QGroupBox('Y Formula')
-        text_edit_formula = QtWidgets.QTextEdit()
-        text_edit_formula.setMaximumHeight(20)
-        uc.usersFormula = text_edit_formula
+        uc.usersFormula = CustomTextEdit(id, 'y_formula')
+        uc.usersFormula.setMaximumHeight(20)
         group_layout = QtWidgets.QVBoxLayout()
-        group_layout.addWidget(text_edit_formula)
+        group_layout.addWidget(uc.usersFormula)
         group_box_formula.setLayout(group_layout)
         layout.addWidget(group_box_formula)
         # Torque
         group_box_stop = QtWidgets.QGroupBox('Torque')
-        spin_box_torque = QtWidgets.QDoubleSpinBox()
-        spin_box_torque.setMinimumWidth(60)
-        spin_box_torque.setMaximumHeight(20)
-        spin_box_torque.setMinimum(0)
-        spin_box_torque.setMaximum(100)
-        spin_box_torque.setValue(0.5)
-        uc.torque = spin_box_torque
+        uc.torque = CustomDoubleSpinBox(id, 'torque')
+        uc.torque.setMinimumWidth(60)
+        uc.torque.setMaximumHeight(20)
+        uc.torque.setMinimum(0)
+        uc.torque.setMaximum(100)
+        if uc.torque.value() < 0:
+            uc.torque.setValue(0.5)
         group_layout = QtWidgets.QVBoxLayout()
-        group_layout.addWidget(spin_box_torque)
+        group_layout.addWidget(uc.torque)
         group_box_stop.setLayout(group_layout)
         layout.addWidget(group_box_stop)
         # Points
         group_box_points = QtWidgets.QGroupBox('Points')
-        spin_box_points = QtWidgets.QSpinBox()
-        spin_box_points.setMaximumHeight(20)
-        spin_box_points.setMinimum(1)
-        spin_box_points.setMaximum(10_000)
-        spin_box_points.setValue(1000)
+        uc.dots = CustomSpinBox(id, 'points')
+        uc.dots.setMaximumHeight(20)
+        uc.dots.setMinimum(1)
+        uc.dots.setMaximum(10_000)
+        if uc.dots.value() < 0:
+            uc.dots.setValue(1000)
         group_layout = QtWidgets.QVBoxLayout()
-        uc.dots = spin_box_points
-        group_layout.addWidget(spin_box_points)
+        group_layout.addWidget(uc.dots)
         group_box_points.setLayout(group_layout)
         layout.addWidget(group_box_points)
         # Control
@@ -1079,6 +1157,14 @@ class TviewMainWindow():
 
     def show(self):
         self.ui.show()
+
+    def save_properties(self):
+        for uc in self.ui.user_context:
+            uc.startPosition.save_properties()
+            uc.endPosition.save_properties()
+            uc.torque.save_properties()
+            uc.dots.save_properties()
+            uc.usersFormula.save_properties()
 
     def _make_transport(self):
         # Get a transport as configured.
@@ -1387,16 +1473,13 @@ class TviewMainWindow():
                     torque = float(uc.torque.value())
                     i = 0
 
-                    _device.write_line('conf set servo.max_position_slip 0.04\r\n')
-                    await asyncio.sleep(0.05)
-                    _device.write_line('conf set servo.default_accel_limit 3.0\r\n')
-                    await asyncio.sleep(0.05)
-                    _device.write_line('conf set servo.default_velocity_limit 2.0\r\n')
-                    await asyncio.sleep(0.05)
-                    _device.write_line('conf set servopos.position_min -1.0\r\n')
-                    await asyncio.sleep(0.05)
-                    _device.write_line('conf set servopos.position_max 1.0\r\n')
-                    await asyncio.sleep(0.05)
+                    for cmd in ['conf set servo.max_position_slip 0.04\r\n',
+                                'conf set servo.default_accel_limit 3.0\r\n',
+                                'conf set servo.default_velocity_limit 2.0\r\n',
+                                'conf set servopos.position_min -1.0\r\n',
+                                'conf set servopos.position_max 1.0\r\n']:
+                        _device.write_line(cmd)
+                        await asyncio.sleep(0.1)
 
                     for pos in _uc.positions:
 
@@ -1425,6 +1508,13 @@ class TviewMainWindow():
                 uc = self.ui.user_context.get(device.number)
                 uc.status = False
 
+                async def task(_device):
+                    for cmd in ['d stop\r\n']:
+                        _device.write_line(cmd)
+                        await asyncio.sleep(0.1)
+
+                asyncio.create_task(task(device))
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -1442,10 +1532,15 @@ def main():
     loop = asyncqt.QEventLoop(app)
     asyncio.set_event_loop(loop)
 
-    # To work around https://bugreports.qt.io/browse/PYSIDE-88
-    app.aboutToQuit.connect(lambda: os._exit(0))
-
     tv = TviewMainWindow(args)
+
+    def quit_window():
+        tv.save_properties()
+        os._exit(0)
+
+    # To work around https://bugreports.qt.io/browse/PYSIDE-88
+    app.aboutToQuit.connect(lambda: quit_window())
+
     tv.show()
 
     app.exec_()
