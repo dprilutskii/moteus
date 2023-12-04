@@ -956,7 +956,7 @@ class CustomTextEdit(QtWidgets.QTextEdit):
             with open(self.file_name, 'w') as f:
                 json.dump(properties, f)
             self.properties = self._load_properties()
-        super().setText(float(self.properties['text']))
+        super().setText(self.properties['text'])
 
     def _load_properties(self):
         properties = {}
@@ -1069,7 +1069,6 @@ class TviewMainWindow():
     def add_devices_user_function(self, id):
         uc = types.SimpleNamespace()
         uc.status = True
-        self.ui.user_context[id] = uc
         uc.times = []
         uc.positions = []
 
@@ -1077,7 +1076,7 @@ class TviewMainWindow():
         deviceGroup = QtWidgets.QGroupBox(str(id) + ':')
         # X Start
         group_box_start = QtWidgets.QGroupBox('X Start')
-        uc.startPosition = CustomDoubleSpinBox(id, 'x_start')
+        uc.startPosition = CustomDoubleSpinBox(str(id), 'x_start')
         uc.startPosition.setMinimumWidth(60)
         uc.startPosition.setMaximumHeight(20)
         uc.startPosition.setMinimum(0)
@@ -1090,7 +1089,7 @@ class TviewMainWindow():
         layout.addWidget(group_box_start)
         # X Stop
         group_box_stop = QtWidgets.QGroupBox('X Stop')
-        uc.endPosition = CustomDoubleSpinBox(id, 'x_stop')
+        uc.endPosition = CustomDoubleSpinBox(str(id), 'x_stop')
         uc.endPosition.setMinimumWidth(60)
         uc.endPosition.setMaximumHeight(20)
         uc.endPosition.setMinimum(0)
@@ -1103,7 +1102,7 @@ class TviewMainWindow():
         layout.addWidget(group_box_stop)
         # Y Formula
         group_box_formula = QtWidgets.QGroupBox('Y Formula')
-        uc.usersFormula = CustomTextEdit(id, 'y_formula')
+        uc.usersFormula = CustomTextEdit(str(id), 'y_formula')
         uc.usersFormula.setMaximumHeight(20)
         group_layout = QtWidgets.QVBoxLayout()
         group_layout.addWidget(uc.usersFormula)
@@ -1111,7 +1110,7 @@ class TviewMainWindow():
         layout.addWidget(group_box_formula)
         # Torque
         group_box_stop = QtWidgets.QGroupBox('Torque')
-        uc.torque = CustomDoubleSpinBox(id, 'torque')
+        uc.torque = CustomDoubleSpinBox(str(id), 'torque')
         uc.torque.setMinimumWidth(60)
         uc.torque.setMaximumHeight(20)
         uc.torque.setMinimum(0)
@@ -1124,7 +1123,7 @@ class TviewMainWindow():
         layout.addWidget(group_box_stop)
         # Points
         group_box_points = QtWidgets.QGroupBox('Points')
-        uc.dots = CustomSpinBox(id, 'points')
+        uc.dots = CustomSpinBox(str(id), 'points')
         uc.dots.setMaximumHeight(20)
         uc.dots.setMinimum(1)
         uc.dots.setMaximum(10_000)
@@ -1154,12 +1153,13 @@ class TviewMainWindow():
         layout.addWidget(group_box_control)
         deviceGroup.setLayout(layout)
         self.ui.verticalLayoutUserFunction.addWidget(deviceGroup)
+        self.ui.user_context[id] = uc
 
     def show(self):
         self.ui.show()
 
     def save_properties(self):
-        for uc in self.ui.user_context:
+        for _, uc in self.ui.user_context.items():
             uc.startPosition.save_properties()
             uc.endPosition.save_properties()
             uc.torque.save_properties()
@@ -1476,6 +1476,7 @@ class TviewMainWindow():
                     for cmd in ['conf set servo.max_position_slip 0.04\r\n',
                                 'conf set servo.default_accel_limit 3.0\r\n',
                                 'conf set servo.default_velocity_limit 2.0\r\n',
+                                'conf set servo.max_current_A 100.0\r\n',
                                 'conf set servopos.position_min -1.0\r\n',
                                 'conf set servopos.position_max 1.0\r\n']:
                         _device.write_line(cmd)
@@ -1536,10 +1537,9 @@ def main():
 
     def quit_window():
         tv.save_properties()
-        os._exit(0)
 
     # To work around https://bugreports.qt.io/browse/PYSIDE-88
-    app.aboutToQuit.connect(lambda: quit_window())
+    app.aboutToQuit.connect(lambda: (quit_window(), os._exit(0)))
 
     tv.show()
 
