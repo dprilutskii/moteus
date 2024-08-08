@@ -1491,6 +1491,9 @@ class TviewMainWindow():
                         _device.write_line(cmd)
                         await asyncio.sleep(0.1)
 
+                    _device.write_line('d exact 0\r\n')
+                    await asyncio.sleep(1.0)
+
                     for pos in _uc.positions:
 
                         # The acceleration and velocity limit could be configured as
